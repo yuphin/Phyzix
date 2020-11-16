@@ -3,6 +3,15 @@
 MassSpringSystemSimulator::MassSpringSystemSimulator()
 {
     m_iTestCase = 0;
+    // For debugging:
+    /*this->mass = 10.0f;
+    this->damping = 0.0f;
+    this->stiffness = 40.0f;
+    this->applyExternalForce(Vec3(0, 0, 0));
+    int p0 = this->addMassPoint(Vec3(0.0, 0.0f, 0), Vec3(-1.0, 0.0f, 0), false);
+    int p1 = this->addMassPoint(Vec3(0.0, 2.0f, 0), Vec3(1.0, 0.0f, 0), false);
+    this->addSpring(p0, p1, 1.0);
+    this->setIntegrator(EULER);*/
 }
 
 const char* MassSpringSystemSimulator::getTestCasesStr()
@@ -11,23 +20,22 @@ const char* MassSpringSystemSimulator::getTestCasesStr()
 }
 
 void MassSpringSystemSimulator::reset() {
-    m_mouse.x = m_mouse.y = 0;
-    m_trackmouse.x = m_trackmouse.y = 0;
-    m_oldtrackmouse.x = m_oldtrackmouse.y = 0;
-
-    mass_points.clear();
-    springs.clear();
+    mouse.x = mouse.y = 0;
+    trackmouse.x = trackmouse.y = 0;
+    old_trackmouse.x = old_trackmouse.y = 0;
 }
+
+void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* pd3dImmediateContext) {}
 
 void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
     this->DUC = DUC;
     
-    TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &m_fMass, "step=0.01 min=0.0001");
-    TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &m_fStiffness, "step=0.1 min=0.0001");
-    TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &m_fDamping, "step=0.01 min=0.0001");
+    TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &mass, "step=0.01 min=0.0001");
+    TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &stiffness, "step=0.1 min=0.0001");
+    TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &damping, "step=0.01 min=0.0001");
 
     TwType TW_TYPE_INTEGRATORTYPE = TwDefineEnumFromString("IntegrationType", "EULER,LEAPFROG,MIDPOINT");
-    TwAddVarRW(DUC->g_pTweakBar, "IntegrationType", TW_TYPE_INTEGRATORTYPE, &m_iIntegrator, "");
+    TwAddVarRW(DUC->g_pTweakBar, "IntegrationType", TW_TYPE_INTEGRATORTYPE, &integrator, "");
 }
 
 void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
@@ -53,8 +61,8 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
 {
     Point2D mouseDiff;
-    mouseDiff.x = m_trackmouse.x - m_oldtrackmouse.x;
-    mouseDiff.y = m_trackmouse.y - m_oldtrackmouse.y;
+    mouseDiff.x = trackmouse.x - old_trackmouse.x;
+    mouseDiff.y = trackmouse.y - old_trackmouse.y;
     if (mouseDiff.x != 0 || mouseDiff.y != 0)
     {
         Mat4 worldViewInv = Mat4(DUC->g_camera.GetWorldMatrix() * DUC->g_camera.GetViewMatrix());
@@ -71,28 +79,79 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
     }
 }
 
+
+void MassSpringSystemSimulator::compute_elastic_force(const Spring& s) {
+    auto& mp1 = mass_points[s.mp1];
+    auto& mp2 = mass_points[s.mp2];
+
+    Vec3 spring_vec = mp1.position - mp2.position;
+    float x = norm(spring_vec) - s.initial_length;
+    normalize(spring_vec);
+    Vec3 f = -stiffness * x * spring_vec;
+    mp1.force += f - damping * mp1.velocity;
+    mp2.force += -f  - damping * mp2.velocity;
+}
+
+void MassSpringSystemSimulator::simulateTimestep(float time_step) {
+    // Clear forces + add external forces 
+    // Compute elastic forces
+    // Apply integrator
+
+    for(auto& mp : mass_points) {
+        mp.force = this->external_force;
+    }
+    for(const auto& spring : springs) {
+        compute_elastic_force(spring);
+    }
+
+    switch(integrator) {
+        case EULER:
+        {
+            for(auto& mp : mass_points) {
+                Vec3 accel = mp.force / mass;
+                mp.position = mp.position + time_step * mp.velocity;
+                mp.velocity = mp.velocity + time_step * accel;
+            }
+            break;
+        }
+        case LEAPFROG:
+        {
+            for(auto& mp : mass_points) {
+                Vec3 accel = mp.force / mass;
+                // Not tested
+                mp.velocity = mp.velocity + time_step * accel;
+                mp.position = mp.position + time_step * mp.velocity;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+
+}
+
 void MassSpringSystemSimulator::onClick(int x, int y) {
-    m_trackmouse.x = x;
-    m_trackmouse.y = y;
+    trackmouse.x = x;
+    trackmouse.y = y;
 }
 
 void MassSpringSystemSimulator::onMouse(int x, int y) {
-    m_oldtrackmouse.x = x;
-    m_oldtrackmouse.y = y;
-    m_trackmouse.x = x;
-    m_trackmouse.y = y;
+    old_trackmouse.x = x;
+    old_trackmouse.y = y;
+    trackmouse.x = x;
+    trackmouse.y = y;
 }
 
 void MassSpringSystemSimulator::setMass(float mass) {
-    m_fMass = mass;
+    this->mass = mass;
 }
 
 void MassSpringSystemSimulator::setStiffness(float stiffness) {
-    m_fStiffness = stiffness;
+    this->stiffness = stiffness;
 }
 
 void MassSpringSystemSimulator::setDampingFactor(float damping) {
-    m_fDamping = damping;
+    this->damping = damping;
 }
 
 int MassSpringSystemSimulator::addMassPoint(Vec3 position, Vec3 Velocity, bool isFixed) {

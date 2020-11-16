@@ -50,14 +50,17 @@ public:
 	
 	// Do Not Change
 	void setIntegrator(int integrator) {
-		integrator = integrator;
+		this->integrator = integrator;
 	}
 
 private:
+	// Custom functions
+	void compute_elastic_force(const Spring&);
+
 	// Data Attributes
-	float global_mass;
-	float global_stiffness;
-	float global_damping;
+	float mass;
+	float stiffness;
+	float damping;
 	int integrator;
 
 	// UI Attributes

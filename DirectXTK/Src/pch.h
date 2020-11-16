@@ -106,3 +106,4 @@
 #pragma warning(pop)
 
 #include <wincodec.h>
+#include <stdexcept>

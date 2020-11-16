@@ -65,6 +65,7 @@ private:
 	Point2D m_mouse;
 	Point2D m_trackmouse;
 	Point2D m_oldtrackmouse;
+
 	// Custom attributes
 	std::vector<MassPoint> mass_points;
 	std::vector<Spring> springs;

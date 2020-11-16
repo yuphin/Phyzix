@@ -40,31 +40,31 @@ public:
 	void setMass(float mass);
 	void setStiffness(float stiffness);
 	void setDampingFactor(float damping);
-	int addMassPoint(Vec3 position, Vec3 Velocity, bool isFixed);
-	void addSpring(int masspoint1, int masspoint2, float initialLength);
+	int addMassPoint(Vec3 position, Vec3 velocity, bool is_fixed);
+	void addSpring(int masspoint1, int masspoint2, float initial_length);
 	int getNumberOfMassPoints();
 	int getNumberOfSprings();
 	Vec3 getPositionOfMassPoint(int index);
 	Vec3 getVelocityOfMassPoint(int index);
-	void applyExternalForce(Vec3 force);
+	inline void applyExternalForce(Vec3 force) { external_force += force; };
 	
 	// Do Not Change
 	void setIntegrator(int integrator) {
-		m_iIntegrator = integrator;
+		integrator = integrator;
 	}
 
 private:
 	// Data Attributes
-	float m_fMass;
-	float m_fStiffness;
-	float m_fDamping;
-	int m_iIntegrator;
+	float global_mass;
+	float global_stiffness;
+	float global_damping;
+	int integrator;
 
 	// UI Attributes
-	Vec3 m_externalForce;
-	Point2D m_mouse;
-	Point2D m_trackmouse;
-	Point2D m_oldtrackmouse;
+	Vec3 external_force;
+	Point2D mouse;
+	Point2D trackmouse;
+	Point2D old_trackmouse;
 
 	// Custom attributes
 	std::vector<MassPoint> mass_points;

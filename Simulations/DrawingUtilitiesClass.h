@@ -166,37 +166,34 @@ void DrawBoundingBox(ID3D11DeviceContext* pd3dImmediateContext)
 {
     // Setup position/color effect
     g_pEffectPositionColor->SetWorld(g_camera.GetWorldMatrix());
-    
+
     g_pEffectPositionColor->Apply(pd3dImmediateContext);
     pd3dImmediateContext->IASetInputLayout(g_pInputLayoutPositionColor);
 
     // Draw
     g_pPrimitiveBatchPositionColor->Begin();
-    
+
     // Lines in x direction (red color)
-    for (int i=0; i<4; i++)
-    {
+    for(int i = 0; i < 4; i++) {
         g_pPrimitiveBatchPositionColor->DrawLine(
-            VertexPositionColor(XMVectorSet(-0.5f, (float)(i%2)-0.5f, (float)(i/2)-0.5f, 1), Colors::Red),
-            VertexPositionColor(XMVectorSet( 0.6f, (float)(i%2)-0.5f, (float)(i/2)-0.5f, 1), Colors::Red)
+            VertexPositionColor(XMVectorSet(-2.0f, std::max(4.0f * ((float) (i % 2) - 0.5f), -0.9f), 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Red),
+            VertexPositionColor(XMVectorSet(2.0f, std::max(4.0f * ((float) (i % 2) - 0.5f), -0.9f), 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Red)
         );
     }
 
     // Lines in y direction
-    for (int i=0; i<4; i++)
-    {
+    for(int i = 0; i < 4; i++) {
         g_pPrimitiveBatchPositionColor->DrawLine(
-            VertexPositionColor(XMVectorSet((float)(i%2)-0.5f, -0.5f, (float)(i/2)-0.5f, 1), Colors::Green),
-            VertexPositionColor(XMVectorSet((float)(i%2)-0.5f,  0.6f, (float)(i/2)-0.5f, 1), Colors::Green)
+            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), -0.9f, 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Green),
+            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), 2.0f, 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Green)
         );
     }
 
     // Lines in z direction
-    for (int i=0; i<4; i++)
-    {
+    for(int i = 0; i < 4; i++) {
         g_pPrimitiveBatchPositionColor->DrawLine(
-            VertexPositionColor(XMVectorSet((float)(i%2)-0.5f, (float)(i/2)-0.5f, -0.5f, 1), Colors::Blue),
-            VertexPositionColor(XMVectorSet((float)(i%2)-0.5f, (float)(i/2)-0.5f,  0.6f, 1), Colors::Blue)
+            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), std::max(4.0f * ((float) (i / 2) - 0.5f), -0.9f), -2.0f, 1), Colors::Blue),
+            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), std::max(4.0f * ((float) (i / 2) - 0.5f), -0.9f), 2.0f, 1), Colors::Blue)
         );
     }
 

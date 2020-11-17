@@ -32,17 +32,25 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 
     uint32_t stride = sizeof(Vertex);
     uint32_t offset = 0;
-    D3D11_RASTERIZER_DESC r_desc;
+   
        
     switch(m_iTestCase) {
         case 4:
         {
-            //  IDK why this is not working...
-            context->RSGetState(&rasterizer_state);
-            r_desc.CullMode = D3D11_CULL_NONE;
-            DUC->g_ppd3Device->CreateRasterizerState(&r_desc, &rasterizer_state);
-            context->RSSetState(rasterizer_state.Get());
-            //
+            D3D11_RASTERIZER_DESC grid_state = {};
+            grid_state.AntialiasedLineEnable = false;
+            grid_state.CullMode = D3D11_CULL_NONE;
+            grid_state.DepthBias = 0;
+            grid_state.DepthBiasClamp = 0.0f;
+            grid_state.DepthClipEnable = true;
+            grid_state.FillMode = D3D11_FILL_SOLID;
+            grid_state.FrontCounterClockwise = false;
+            grid_state.MultisampleEnable = false;
+            grid_state.ScissorEnable = false;
+            grid_state.SlopeScaledDepthBias = 0.0f;
+            context->RSGetState(&rasterizer_old);
+            DUC->g_ppd3Device->CreateRasterizerState(&grid_state, &rasterizer_grid);
+            context->RSSetState(rasterizer_grid.Get());
 
             // TODO: Move these to an input callback
             XMMATRIX model = DUC->g_camera.GetWorldMatrix();
@@ -115,6 +123,8 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 0,
                 0
             );
+
+            context->RSSetState(rasterizer_old.Get());
         }
         break;
 

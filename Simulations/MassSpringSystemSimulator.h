@@ -96,7 +96,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> input_layout;
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixel_shader;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> constant_buffer;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_state;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_old;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_grid;
 	ConstantBufferStruct constant_buffer_data;
 };
 #endif

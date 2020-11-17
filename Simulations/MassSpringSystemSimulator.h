@@ -22,9 +22,8 @@ struct Spring {
 	float initial_length;
 };
 
-struct Vertex {
+struct MassPointVertex {
 	DirectX::XMFLOAT3 pos;
-	DirectX::XMFLOAT3 color;
 	DirectX::XMFLOAT3 normal;
 };
 
@@ -75,6 +74,7 @@ private:
 	// Custom functions
 	void compute_elastic_force(const Spring&);
 	void initScene();
+	void update_vertex_data();
 
 	// Data Attributes
 	float mass;
@@ -82,11 +82,16 @@ private:
 	float damping;
 	int integrator;
 
+	// Maybe we can change these through UI?
+	int GRIDX = 20; // Try 100*100, we need to parallelize on the CPU too
+	int GRIDY = 20;
+
 	// UI Attributes
 	Vec3 external_force;
 	Point2D mouse;
 	Point2D trackmouse;
 	Point2D old_trackmouse;
+
 
 	float* timestep;
 	bool running;
@@ -94,6 +99,7 @@ private:
 	// Custom attributes
 	std::vector<MassPoint> mass_points;
 	std::vector<Spring> springs;
+	std::vector<MassPointVertex> vertices;
 
 	//Midpoint related attributes
 	std::vector<Vec3> old_positions;

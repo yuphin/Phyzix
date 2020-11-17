@@ -15,7 +15,7 @@ void MassSpringSystemSimulator::reset() {
     mouse.x = mouse.y = 0;
     trackmouse.x = trackmouse.y = 0;
     old_trackmouse.x = old_trackmouse.y = 0;
-
+    external_force = 0;
     springs.clear();
     mass_points.clear();
 
@@ -24,7 +24,7 @@ void MassSpringSystemSimulator::reset() {
 
 void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 
-    uint32_t stride = sizeof(Vertex);
+    uint32_t stride = sizeof(MassPointVertex);
     uint32_t offset = 0;
    
        
@@ -77,12 +77,15 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 0
             );
 
-            context->IASetVertexBuffers(
+            update_vertex_data();
+
+            context->UpdateSubresource(
+                vertex_buffer.Get(),
                 0,
-                1,
-                vertex_buffer.GetAddressOf(),
-                &stride,
-                &offset
+                nullptr,
+                vertices.data(),
+                sizeof(MassPointVertex) * vertices.size(),
+                0
             );
 
             context->IASetIndexBuffer(
@@ -98,6 +101,14 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 vertex_shader.Get(),
                 nullptr,
                 0
+            );
+
+            context->IASetVertexBuffers(
+                0,
+                1,
+                vertex_buffer.GetAddressOf(),
+                &stride,
+                &offset
             );
 
             context->VSSetConstantBuffers(
@@ -168,11 +179,8 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
             0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 
-            { "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-            0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-
             { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-            0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
 
         hr = device->CreateInputLayout(
@@ -196,43 +204,23 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
        
     }
 
-    if(!vertex_buffer) {
-        // Create vertex buffers (for demo purposes)
-        constexpr int GRIDX = 100;
-        constexpr int GRIDY = 100;
-        constexpr int GRIDSIZE = GRIDX * GRIDY;
-        constexpr float dx = 1.0f / GRIDX;
-        constexpr float dy = 1.0f / GRIDY;
-        std::vector<Vertex> vertices(GRIDX * GRIDY);
+    if(!vertex_buffer && m_iTestCase == 4) {
         std::vector<uint32_t> indices;
-        matrix4x4<float> t;
-        t.initTranslation(-0.5f, -0.5f, -0.5f);
-        auto translation = t.toDirectXMatrix();
-
-        // TODO : Get these vertices from MassPoint vector
-        for(int i = 0; i < GRIDY; i++) {
-            for(int j = 0; j < GRIDX; j++) {
-                XMVECTOR pos = XMVectorSet(dx * j, 0.2, dy * i, 1.0f);
-                pos = XMVector3Transform(pos, translation);
-                vertices[i * GRIDX + j] = {
-                    DirectX::XMFLOAT3(XMVectorGetX(pos), XMVectorGetY(pos), XMVectorGetZ(pos)),
-                    DirectX::XMFLOAT3(0,0,0),
-                    DirectX::XMFLOAT3(0,1.0,0),
-                };
-            }
-        }
-        CD3D11_BUFFER_DESC vDesc(
-            sizeof(Vertex) * vertices.size(),
+        // Updates MassPointVertex vector
+        update_vertex_data();
+        CD3D11_BUFFER_DESC v_desc(
+            sizeof(MassPointVertex) * mass_points.size(),
             D3D11_BIND_VERTEX_BUFFER
         );
-        D3D11_SUBRESOURCE_DATA vData;
-        ZeroMemory(&vData, sizeof(D3D11_SUBRESOURCE_DATA));
-        vData.pSysMem = vertices.data();
-        vData.SysMemPitch = 0;
-        vData.SysMemSlicePitch = 0;
+
+        D3D11_SUBRESOURCE_DATA v_data;
+        ZeroMemory(&v_data, sizeof(D3D11_SUBRESOURCE_DATA));
+        v_data.pSysMem = vertices.data();
+        v_data.SysMemPitch = 0;
+        v_data.SysMemSlicePitch = 0;
         hr = device->CreateBuffer(
-            &vDesc,
-            &vData,
+            &v_desc,
+            &v_data,
             &vertex_buffer
         );
         for(int i = 0; i < GRIDY - 1; i++) {
@@ -261,7 +249,6 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
             &iData,
             &index_buffer
         );
-
     }
 }
 
@@ -302,12 +289,65 @@ void MassSpringSystemSimulator::initScene()
     case 3:
         break;
     case 4:
+    {
+        this->setIntegrator(EULER);
+        *timestep = 0.005f;
+        // Initialize the grid
+        this->mass = 10.0f;
+        this->damping = 20.0f;
+        this->stiffness = 40.0f;
+        Vec3 initial_velocity(0, 0, 0);
+        Vec3 initial_force(0, 0, 0);
+        float spring_length = 1.0f / GRIDX; // Assume uniform grid for now
+        this->applyExternalForce(Vec3(0, -4.0, 0));
+        int GRIDSIZE = GRIDX * GRIDY;
+        float dx = 1.0f / GRIDX;
+        float dy = 1.0f / GRIDY;
+        matrix4x4<float> t;
+        this->mass_points.resize(GRIDX * GRIDY);
+        this->springs.reserve(GRIDX * GRIDY * 2);
+        t.initTranslation(-0.5f, -0.5f, -0.5f);
+        for(int i = 0; i < GRIDY; i++) {
+            for(int j = 0; j < GRIDX; j++) {
+                auto curr_idx = i * GRIDX + j;
+                Vec3 pos(dx * j, 0.2f, dy * i);
+                auto translated_pos = t.transformVector(pos);
+                mass_points[curr_idx] = {
+                 translated_pos,
+                 initial_velocity,
+                 initial_force,
+                 false
+                };
+                auto right = j < GRIDX-1 ? i * GRIDX + j + 1 : curr_idx;
+                auto bottom = i < GRIDY-1 ? (i + 1) * GRIDX + j : curr_idx;
+                if(curr_idx != right) {
+                    springs.push_back({ curr_idx,  right, spring_length });
+                }
+                if(curr_idx != bottom) {
+                    springs.push_back({ curr_idx,  bottom, spring_length });
+                }
+            }
+        }
+    }
         break;
     case 5:
         cout << "Demo 5 !\n";
         break;
     default:
         break;
+    }
+}
+
+void MassSpringSystemSimulator::update_vertex_data() {
+
+    // Here we assume that mass points are initialized
+    assert(mass_points.size()); 
+    vertices.clear();
+    vertices.resize(mass_points.size());
+    for(int i = 0; i < mass_points.size(); i++) {
+        DirectX::XMVECTOR pos = mass_points[i].position.toDirectXVector();
+        XMStoreFloat3(&vertices[i].pos, pos);
+        vertices[i].normal = DirectX::XMFLOAT3(0.0, 1.0, 0.0);
     }
 }
 

@@ -4,28 +4,22 @@
 MassSpringSystemSimulator::MassSpringSystemSimulator()
 {
     m_iTestCase = 0;
-    // For debugging:
-    /*this->mass = 10.0f;
-    this->damping = 0.0f;
-    this->stiffness = 40.0f;
-    this->applyExternalForce(Vec3(0, 0, 0));
-    int p0 = this->addMassPoint(Vec3(0.0, 0.0f, 0), Vec3(-1.0, 0.0f, 0), false);
-    int p1 = this->addMassPoint(Vec3(0.0, 2.0f, 0), Vec3(1.0, 0.0f, 0), false);
-    this->addSpring(p0, p1, 1.0);
-    this->setIntegrator(EULER);*/
-
-
 }
 
 const char* MassSpringSystemSimulator::getTestCasesStr()
 {
-    return "Demo 2, Demo 3, Demo 4, Demo 5, Demo Solid";
+    return "Demo 1, Demo 2, Demo 3, Demo 4, Demo 4 Solid, Demo 5";
 }
  
 void MassSpringSystemSimulator::reset() {
     mouse.x = mouse.y = 0;
     trackmouse.x = trackmouse.y = 0;
     old_trackmouse.x = old_trackmouse.y = 0;
+
+    springs.clear();
+    mass_points.clear();
+
+    initScene();
 }
 
 void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
@@ -125,9 +119,25 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
             );
 
             context->RSSetState(rasterizer_old.Get());
+            break;
         }
-        break;
+        default:
+        {
+            std::mt19937 eng;
+            std::uniform_real_distribution<float> randCol(0.0f, 1.0f);
 
+            for (auto& mp : mass_points) {
+                DUC->setUpLighting(Vec3(), 0.4 * Vec3(1, 1, 1), 100, 0.6 * Vec3(randCol(eng), randCol(eng), randCol(eng)));
+                DUC->drawSphere(mp.position, Vec3(0.1, 0.1, 0.1));
+            }
+
+            for (const auto& spring : springs) {
+                DUC->beginLine();
+                DUC->drawLine(mass_points[spring.mp1].position, Vec3(1, 0, 0), mass_points[spring.mp2].position, Vec3(1, 0, 0));
+                DUC->endLine();
+            }
+            break;
+        }
     }
    
 
@@ -255,25 +265,76 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
     }
 }
 
-void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
+void MassSpringSystemSimulator::initScene()
 {
-    m_iTestCase = testCase;
+    running = true;
+
+    if (m_iTestCase >= 0 && m_iTestCase <= 2) {
+        this->mass = 10.0f;
+        this->damping = 0.0f;
+        this->stiffness = 40.0f;
+        this->applyExternalForce(Vec3(0, 0, 0));
+        int p0 = this->addMassPoint(Vec3(0.0, 0.0f, 0), Vec3(-1.0, 0.0f, 0), false);
+        int p1 = this->addMassPoint(Vec3(0.0, 2.0f, 0), Vec3(1.0, 0.0f, 0), false);
+        this->addSpring(p0, p1, 1.0);
+    }
+
     switch (m_iTestCase)
     {
     case 0:
-        cout << "Demo 2 !\n";
+    {
+        this->setIntegrator(EULER);
+        *timestep = 0.1f;
         break;
+    }
     case 1:
-        cout << "Demo 3 !\n";
+    {
+        this->setIntegrator(EULER);
+        *timestep = 0.005f;
         break;
+    }
     case 2:
-        cout << "Demo 4 !\n";
+    {
+        this->setIntegrator(MIDPOINT);
+        *timestep = 0.005f;
         break;
+    }
     case 3:
-        cout << "Demo 5 !\n";
         break;
     case 4:
-        cout << "Demo Solid !\n";
+        break;
+    case 5:
+        cout << "Demo 5 !\n";
+        break;
+    default:
+        break;
+    }
+}
+
+void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
+{
+    m_iTestCase = testCase;
+    reset();
+
+    switch (m_iTestCase)
+    {
+    case 0:
+        cout << "Demo 1 !\n";
+        break;
+    case 1:
+        cout << "Demo 2 !\n";
+        break;
+    case 2:
+        cout << "Demo 3 !\n";
+        break;
+    case 3:
+        cout << "Demo 4 !\n";
+        break;
+    case 4:
+        cout << "Demo 4 Solid !\n";
+        break;
+    case 5:
+        cout << "Demo 5 !\n";
         break;
     default:
         cout << "Demo n !\n";
@@ -316,6 +377,10 @@ void MassSpringSystemSimulator::compute_elastic_force(const Spring& s) {
 }
 
 void MassSpringSystemSimulator::simulateTimestep(float time_step) {
+    if (!running) {
+        return;
+    }
+
     // Clear forces + add external forces 
     // Compute elastic forces
     // Apply integrator
@@ -383,6 +448,15 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
             break;
     }
 
+    if (m_iTestCase == 0) {
+        int index = 0;
+        for (int i = 0; i < mass_points.size(); i++) {
+            auto& mp = mass_points[i];
+            cout << "Point " << i + 1 << " position: " << mp.position << "\n";
+            cout << "Point " << i + 1 << " velocity: " << mp.velocity << "\n";
+        }
+        running = false;
+    }
 }
 
 void MassSpringSystemSimulator::onClick(int x, int y) {
@@ -436,4 +510,9 @@ Vec3 MassSpringSystemSimulator::getPositionOfMassPoint(int index) {
 
 Vec3 MassSpringSystemSimulator::getVelocityOfMassPoint(int index) {
     return mass_points[index].velocity;
+}
+
+void MassSpringSystemSimulator::passTimestepVariable(float& time_step)
+{
+    timestep = &time_step;
 }

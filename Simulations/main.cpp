@@ -364,6 +364,7 @@ int main(int argc, char* argv[])
 #endif
 #ifdef MASS_SPRING_SYSTEM
 	g_pSimulator= new MassSpringSystemSimulator();
+	((MassSpringSystemSimulator*) g_pSimulator)->passTimestepVariable(g_fTimestep);
 #endif
 #ifdef RIGID_BODY_SYSTEM
 	//g_pSimulator= new RigidBodySystemSimulator();

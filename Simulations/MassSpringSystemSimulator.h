@@ -63,6 +63,9 @@ public:
 	Vec3 getPositionOfMassPoint(int index);
 	Vec3 getVelocityOfMassPoint(int index);
 	inline void applyExternalForce(Vec3 force) { external_force += force; };
+
+	void passTimestepVariable(float& time_step);
+
 	// Do Not Change
 	void setIntegrator(int integrator) {
 		this->integrator = integrator;
@@ -71,6 +74,7 @@ public:
 private:
 	// Custom functions
 	void compute_elastic_force(const Spring&);
+	void initScene();
 
 	// Data Attributes
 	float mass;
@@ -83,6 +87,9 @@ private:
 	Point2D mouse;
 	Point2D trackmouse;
 	Point2D old_trackmouse;
+
+	float* timestep;
+	bool running;
 
 	// Custom attributes
 	std::vector<MassPoint> mass_points;

@@ -1,5 +1,6 @@
 #include "MassSpringSystemSimulator.h"
-
+#include <d3dcompiler.h>
+#pragma comment(lib,"D3dcompiler.lib")
 MassSpringSystemSimulator::MassSpringSystemSimulator()
 {
     m_iTestCase = 0;
@@ -12,11 +13,13 @@ MassSpringSystemSimulator::MassSpringSystemSimulator()
     int p1 = this->addMassPoint(Vec3(0.0, 2.0f, 0), Vec3(1.0, 0.0f, 0), false);
     this->addSpring(p0, p1, 1.0);
     this->setIntegrator(EULER);*/
+
+
 }
 
 const char* MassSpringSystemSimulator::getTestCasesStr()
 {
-    return "Demo 2, Demo 3, Demo 4, Demo 5";
+    return "Demo 2, Demo 3, Demo 4, Demo 5, Demo Solid";
 }
  
 void MassSpringSystemSimulator::reset() {
@@ -25,17 +28,231 @@ void MassSpringSystemSimulator::reset() {
     old_trackmouse.x = old_trackmouse.y = 0;
 }
 
-void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* pd3dImmediateContext) {}
+void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
+
+    uint32_t stride = sizeof(Vertex);
+    uint32_t offset = 0;
+   
+       
+    switch(m_iTestCase) {
+        case 4:
+        {
+            D3D11_RASTERIZER_DESC grid_state = {};
+            grid_state.AntialiasedLineEnable = false;
+            grid_state.CullMode = D3D11_CULL_NONE;
+            grid_state.DepthBias = 0;
+            grid_state.DepthBiasClamp = 0.0f;
+            grid_state.DepthClipEnable = true;
+            grid_state.FillMode = D3D11_FILL_SOLID;
+            grid_state.FrontCounterClockwise = false;
+            grid_state.MultisampleEnable = false;
+            grid_state.ScissorEnable = false;
+            grid_state.SlopeScaledDepthBias = 0.0f;
+            context->RSGetState(&rasterizer_old);
+            DUC->g_ppd3Device->CreateRasterizerState(&grid_state, &rasterizer_grid);
+            context->RSSetState(rasterizer_grid.Get());
+
+            // TODO: Move these to an input callback
+            XMMATRIX model = DUC->g_camera.GetWorldMatrix();
+            XMMATRIX view = DUC->g_camera.GetViewMatrix();
+            XMMATRIX proj = DUC->g_camera.GetProjMatrix();
+            DirectX::XMStoreFloat4x4(
+                &constant_buffer_data.model,
+                model
+            );
+            DirectX::XMStoreFloat4x4(
+                &constant_buffer_data.view,
+                view
+            );
+            DirectX::XMStoreFloat4x4(
+                &constant_buffer_data.projection,
+                proj
+            );
+            auto mvp = model * view * proj;
+            DirectX::XMStoreFloat4x4(
+                &constant_buffer_data.mvp,
+                mvp
+            );
+
+            context->UpdateSubresource(
+                constant_buffer.Get(),
+                0,
+                nullptr,
+                &constant_buffer_data,
+                0,
+                0
+            );
+
+            context->IASetVertexBuffers(
+                0,
+                1,
+                vertex_buffer.GetAddressOf(),
+                &stride,
+                &offset
+            );
+
+            context->IASetIndexBuffer(
+                index_buffer.Get(),
+                DXGI_FORMAT_R32_UINT,
+                0
+            );
+
+            context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            context->IASetInputLayout(input_layout.Get());
+
+            context->VSSetShader(
+                vertex_shader.Get(),
+                nullptr,
+                0
+            );
+
+            context->VSSetConstantBuffers(
+                0,
+                1,
+                constant_buffer.GetAddressOf()
+            );
+
+            context->PSSetShader(
+                pixel_shader.Get(),
+                nullptr,
+                0
+            );
+
+            context->DrawIndexed(
+                index_count,
+                0,
+                0
+            );
+
+            context->RSSetState(rasterizer_old.Get());
+        }
+        break;
+
+    }
+   
+
+}
 
 void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
     this->DUC = DUC;
-    
+
     TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &mass, "step=0.01 min=0.0001");
     TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &stiffness, "step=0.1 min=0.0001");
     TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &damping, "step=0.01 min=0.0001");
 
     TwType TW_TYPE_INTEGRATORTYPE = TwDefineEnumFromString("IntegrationType", "EULER,LEAPFROG,MIDPOINT");
     TwAddVarRW(DUC->g_pTweakBar, "IntegrationType", TW_TYPE_INTEGRATORTYPE, &integrator, "");
+
+    ID3D11Device* device = DUC->g_ppd3Device;
+    HRESULT hr = S_OK;
+    if(!vertex_shader) {
+        // Create shaders
+        ID3DBlob* vs_blob = nullptr;
+        D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "VS", "vs_5_0", 0, 0, &vs_blob, NULL);
+        ID3DBlob* ps_blob = nullptr;
+        D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "PS", "ps_5_0", 0, 0, &ps_blob, NULL);
+        device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), NULL, &vertex_shader);
+        device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), NULL, &pixel_shader);
+        D3D11_INPUT_ELEMENT_DESC iaDesc[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+            0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+            { "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+            0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+            0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        };
+
+        hr = device->CreateInputLayout(
+            iaDesc,
+            ARRAYSIZE(iaDesc),
+            vs_blob->GetBufferPointer(),
+            vs_blob->GetBufferSize(),
+            &input_layout
+        );
+
+        CD3D11_BUFFER_DESC cbDesc(
+            sizeof(ConstantBufferStruct),
+            D3D11_BIND_CONSTANT_BUFFER
+        );
+
+        hr = device->CreateBuffer(
+            &cbDesc,
+            nullptr,
+            constant_buffer.GetAddressOf()
+        );
+       
+    }
+
+    if(!vertex_buffer) {
+        // Create vertex buffers (for demo purposes)
+        constexpr int GRIDX = 100;
+        constexpr int GRIDY = 100;
+        constexpr int GRIDSIZE = GRIDX * GRIDY;
+        constexpr float dx = 1.0f / GRIDX;
+        constexpr float dy = 1.0f / GRIDY;
+        std::vector<Vertex> vertices(GRIDX * GRIDY);
+        std::vector<uint32_t> indices;
+        matrix4x4<float> t;
+        t.initTranslation(-0.5f, -0.5f, -0.5f);
+        auto translation = t.toDirectXMatrix();
+
+        // TODO : Get these vertices from MassPoint vector
+        for(int i = 0; i < GRIDY; i++) {
+            for(int j = 0; j < GRIDX; j++) {
+                XMVECTOR pos = XMVectorSet(dx * j, 0.2, dy * i, 1.0f);
+                pos = XMVector3Transform(pos, translation);
+                vertices[i * GRIDX + j] = {
+                    DirectX::XMFLOAT3(XMVectorGetX(pos), XMVectorGetY(pos), XMVectorGetZ(pos)),
+                    DirectX::XMFLOAT3(0,0,0),
+                    DirectX::XMFLOAT3(0,1.0,0),
+                };
+            }
+        }
+        CD3D11_BUFFER_DESC vDesc(
+            sizeof(Vertex) * vertices.size(),
+            D3D11_BIND_VERTEX_BUFFER
+        );
+        D3D11_SUBRESOURCE_DATA vData;
+        ZeroMemory(&vData, sizeof(D3D11_SUBRESOURCE_DATA));
+        vData.pSysMem = vertices.data();
+        vData.SysMemPitch = 0;
+        vData.SysMemSlicePitch = 0;
+        hr = device->CreateBuffer(
+            &vDesc,
+            &vData,
+            &vertex_buffer
+        );
+        for(int i = 0; i < GRIDY - 1; i++) {
+            for(int j = 0; j < GRIDX; j++) {
+                // CCW?
+                indices.push_back((i) * GRIDX + j);
+                indices.push_back((i + 1) * GRIDX + j);
+            }
+            // Primitive restart
+            indices.push_back(-1);
+        }
+
+        CD3D11_BUFFER_DESC iDesc(
+            sizeof(uint32_t) * indices.size(),
+            D3D11_BIND_INDEX_BUFFER
+        );
+        this->index_count = indices.size();
+
+        D3D11_SUBRESOURCE_DATA iData;
+        ZeroMemory(&iData, sizeof(D3D11_SUBRESOURCE_DATA));
+        iData.pSysMem = indices.data();
+        iData.SysMemPitch = 0;
+        iData.SysMemSlicePitch = 0;
+        hr = device->CreateBuffer(
+            &iDesc,
+            &iData,
+            &index_buffer
+        );
+
+    }
 }
 
 void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
@@ -52,8 +269,14 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
     case 2:
         cout << "Demo 4 !\n";
         break;
-    default:
+    case 3:
         cout << "Demo 5 !\n";
+        break;
+    case 4:
+        cout << "Demo Solid !\n";
+        break;
+    default:
+        cout << "Demo n !\n";
         break;
     }
 }

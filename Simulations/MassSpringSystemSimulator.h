@@ -1,6 +1,8 @@
 #ifndef MASSSPRINGSYSTEMSIMULATOR_h
 #define MASSSPRINGSYSTEMSIMULATOR_h
 #include "Simulator.h"
+#include <wrl/client.h>
+
 
 // Do Not Change
 #define EULER 0
@@ -18,6 +20,19 @@ struct MassPoint {
 struct Spring {
 	int mp1, mp2;
 	float initial_length;
+};
+
+struct Vertex {
+	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT3 color;
+	DirectX::XMFLOAT3 normal;
+};
+
+struct ConstantBufferStruct {
+	DirectX::XMFLOAT4X4 model;
+	DirectX::XMFLOAT4X4 view;
+	DirectX::XMFLOAT4X4 projection;
+	DirectX::XMFLOAT4X4 mvp;
 };
 
 class MassSpringSystemSimulator:public Simulator{
@@ -41,13 +56,13 @@ public:
 	void setStiffness(float stiffness);
 	void setDampingFactor(float damping);
 	int addMassPoint(Vec3 position, Vec3 velocity, bool is_fixed);
+
 	void addSpring(int masspoint1, int masspoint2, float initial_length);
 	int getNumberOfMassPoints();
 	int getNumberOfSprings();
 	Vec3 getPositionOfMassPoint(int index);
 	Vec3 getVelocityOfMassPoint(int index);
 	inline void applyExternalForce(Vec3 force) { external_force += force; };
-	
 	// Do Not Change
 	void setIntegrator(int integrator) {
 		this->integrator = integrator;
@@ -76,5 +91,17 @@ private:
 	//Midpoint related attributes
 	std::vector<Vec3> old_positions;
 	std::vector<Vec3> old_velocities;
+	
+	uint32_t index_count;
+
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vertex_buffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> index_buffer;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertex_shader;
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> input_layout;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixel_shader;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> constant_buffer;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_old;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_grid;
+	ConstantBufferStruct constant_buffer_data;
 };
 #endif

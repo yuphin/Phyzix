@@ -242,6 +242,9 @@
     <ClInclude Include="util\vectorbase.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="cloth.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="effect.fx">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </EntryPointName>

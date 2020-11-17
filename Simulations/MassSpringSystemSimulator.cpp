@@ -18,7 +18,7 @@ const char* MassSpringSystemSimulator::getTestCasesStr()
 {
     return "Demo 2, Demo 3, Demo 4, Demo 5";
 }
-
+ 
 void MassSpringSystemSimulator::reset() {
     mouse.x = mouse.y = 0;
     trackmouse.x = trackmouse.y = 0;
@@ -122,6 +122,38 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
                 mp.velocity = mp.velocity + time_step * accel;
                 mp.position = mp.position + time_step * mp.velocity;
             }
+            break;
+        }
+        case MIDPOINT:
+        {
+            old_positions.clear();
+            old_velocities.clear();
+
+            for (auto& mp : mass_points) {
+                Vec3 accel = mp.force / mass;
+
+                old_positions.push_back(mp.position);
+                old_velocities.push_back(mp.velocity);
+
+                mp.position = mp.position + time_step / 2.0f * mp.velocity;
+                mp.velocity = mp.velocity + time_step / 2.0f * accel;
+            }
+
+            for (auto& mp : mass_points) {
+                mp.force = this->external_force;
+            }
+
+            for (const auto& spring : springs) {
+                compute_elastic_force(spring);
+            }
+
+            for (int i = 0; i < mass_points.size(); i++) {
+                Vec3 accel = mass_points[i].force / mass;
+
+                mass_points[i].position = old_positions[i] + time_step * mass_points[i].velocity;
+                mass_points[i].velocity = old_velocities[i] + time_step * accel;
+            }
+
             break;
         }
         default:

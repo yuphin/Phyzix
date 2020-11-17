@@ -72,5 +72,9 @@ private:
 	// Custom attributes
 	std::vector<MassPoint> mass_points;
 	std::vector<Spring> springs;
+
+	//Midpoint related attributes
+	std::vector<Vec3> old_positions;
+	std::vector<Vec3> old_velocities;
 };
 #endif

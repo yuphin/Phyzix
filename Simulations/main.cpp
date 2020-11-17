@@ -250,6 +250,7 @@ void CALLBACK OnFrameMove( double dTime, float fElapsedTime, void* pUserContext 
 		initTweakBar();
 		g_pSimulator->notifyCaseChanged(g_iTestCase);
 		g_pSimulator->initUI(g_pDUC);
+
 		g_iPreTestCase = g_iTestCase;
 	}
 	if(!g_bSimulateByStep){
@@ -352,7 +353,7 @@ int main(int argc, char* argv[])
 	// Init Drawing Class
 	g_pDUC = new DrawingUtilitiesClass();
     // Init camera
- 	XMFLOAT3 eye(0.0f, 0.0f, -2.0f);
+ 	XMFLOAT3 eye(0.0f, 0.4f, -2.0f);
 	XMFLOAT3 lookAt(0.0f, 0.0f, 0.0f);
 	g_pDUC->g_camera.SetViewParams(XMLoadFloat3(&eye), XMLoadFloat3(&lookAt));
 	g_pDUC-> g_camera.SetButtonMasks(MOUSE_MIDDLE_BUTTON, MOUSE_WHEEL, MOUSE_RIGHT_BUTTON);
@@ -380,7 +381,7 @@ int main(int argc, char* argv[])
 	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, 1280, 960 );
     
 	DXUTMainLoop(); // Enter into the DXUT render loop
+	delete g_pSimulator;
 	DXUTShutdown(); // Shuts down DXUT (includes calls to OnD3D11ReleasingSwapChain() and OnD3D11DestroyDevice())
-	
 	return DXUTGetExitCode();
 }

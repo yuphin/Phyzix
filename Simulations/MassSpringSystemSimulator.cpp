@@ -140,7 +140,7 @@ void MassSpringSystemSimulator::reset() {
     external_force = 0;
     springs.clear();
     mass_points.clear();
-
+    update_vertex = true;
     initScene();
 }
 
@@ -357,7 +357,8 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
        
     }
 
-    if(!vertex_buffer && (m_iTestCase == 4 || m_iTestCase == 3)) {
+    if(update_vertex && (m_iTestCase == 4 || m_iTestCase == 3)) {
+        update_vertex = false;
         std::vector<uint32_t> indices;
         // Updates MassPointVertex vector
         m_iTestCase == 3 ? update_vertex_extended() : update_vertex_data();
@@ -405,13 +406,21 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
 
         if(m_iTestCase == 3) {
             // First time we create this buffer we want to fill it
-            create_structured_buffer(device, sizeof(MassPointVertex), mass_points.size(), 
-                                     vertices.data(), buffer_in.GetAddressOf());
-            create_structured_buffer(device, sizeof(MassPointVertex), mass_points.size(), 0,
-                                     buffer_out.GetAddressOf());
-            create_srv(device, buffer_in.Get(), &srv);
-            create_uav(device, buffer_out.Get(), &uav);
+            if(!buffer_in) {
+                create_structured_buffer(device, sizeof(MassPointVertex), mass_points.size(),
+                                         vertices.data(), buffer_in.GetAddressOf());
+                create_srv(device, buffer_in.Get(), &srv);
 
+            }else{
+                auto context = DUC->g_pd3dImmediateContext;
+                context->UpdateSubresource(buffer_in.Get(), 0, nullptr, vertices.data(), 0, 0);
+            }
+
+            if(!buffer_out) {
+                create_structured_buffer(device, sizeof(MassPointVertex), mass_points.size(), 0,
+                                         buffer_out.GetAddressOf());
+                create_uav(device, buffer_out.Get(), &uav);
+            }
         }
     }
 }

@@ -115,6 +115,7 @@ private:
 
 	float* timestep;
 	bool running;
+	bool update_vertex = true;
 
 	// Custom attributes
 	std::vector<MassPoint> mass_points;

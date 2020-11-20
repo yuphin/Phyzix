@@ -1,4 +1,4 @@
-cbuffer MVPConstantBuffer : register(b0) {
+cbuffer ClothCB : register(b0) {
     matrix model;
     matrix view;
     matrix projection;
@@ -18,7 +18,6 @@ uint hash(uint seed) {
 
 struct VS_IN {
     float3 pos : POSITION;
-    float3 normal : NORMAL;
     uint id : SV_VertexID;
 };
 
@@ -34,7 +33,6 @@ VS_OUT VS(VS_IN input) {
     float3 col = float3(float(hv & 255), float((hv >> 8) & 255), float((hv >> 16) & 255)) / 255.0;
     VS_OUT output;
     output.position = mul(mvp, float4(input.pos, 1.0));
-    output.normal = input.normal;
     output.col = col;
     return output;
 }

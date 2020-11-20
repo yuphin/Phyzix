@@ -3,6 +3,7 @@
 #include "Simulator.h"
 #include <wrl/client.h>
 
+using namespace Microsoft::WRL;
 
 // Do Not Change
 #define EULER 0
@@ -24,14 +25,29 @@ struct Spring {
 
 struct MassPointVertex {
 	DirectX::XMFLOAT3 pos;
-	DirectX::XMFLOAT3 normal;
+	DirectX::XMFLOAT3 vel;
+	DirectX::XMFLOAT3 f;
+	uint32_t is_fixed;
 };
 
-struct ConstantBufferStruct {
+struct ClothCB {
 	DirectX::XMFLOAT4X4 model;
 	DirectX::XMFLOAT4X4 view;
 	DirectX::XMFLOAT4X4 projection;
 	DirectX::XMFLOAT4X4 mvp;
+};
+
+struct StateCB {
+	DirectX::XMFLOAT3 sphere_pos;
+	float delta;
+	DirectX::XMUINT2 grid_dim;
+	float sphere_radius;
+	float mass;
+	float stiffness;
+	float damping;
+	float initial_len;
+	float padding;
+	DirectX::XMFLOAT3 external_force;
 };
 
 class MassSpringSystemSimulator:public Simulator{
@@ -70,12 +86,15 @@ public:
 		this->integrator = integrator;
 	}
 
+	~MassSpringSystemSimulator();
+
 private:
 	// Custom functions
 	void compute_elastic_force(const Spring&);
 	void initScene();
 	void update_vertex_data();
-
+	void update_vertex_extended();
+	
 	// Data Attributes
 	float mass;
 	float stiffness;
@@ -106,15 +125,23 @@ private:
 	std::vector<Vec3> old_velocities;
 	
 	uint32_t index_count;
+	Vec3 sphere_pos;
 
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vertex_buffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> index_buffer;
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertex_shader;
-	Microsoft::WRL::ComPtr<ID3D11InputLayout> input_layout;
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixel_shader;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> constant_buffer;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_old;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer_grid;
-	ConstantBufferStruct constant_buffer_data;
+	ComPtr<ID3D11Buffer> vertex_buffer;
+	ComPtr<ID3D11Buffer> index_buffer;
+	ComPtr<ID3D11VertexShader> vertex_shader;
+	ComPtr<ID3D11InputLayout> input_layout;
+	ComPtr<ID3D11PixelShader> pixel_shader;
+	ComPtr<ID3D11Buffer> cloth_buffer;
+	ComPtr<ID3D11Buffer> simulation_buffer;
+	ComPtr<ID3D11RasterizerState> rasterizer_old;
+	ComPtr<ID3D11RasterizerState> rasterizer_grid;
+	ComPtr<ID3D11ComputeShader> compute_shader;
+	ComPtr<ID3D11Buffer> buffer_in;
+	ComPtr<ID3D11Buffer> buffer_out;
+	ID3D11ShaderResourceView* srv = nullptr;
+	ID3D11UnorderedAccessView* uav = nullptr;
+	ClothCB cloth_cb;
+	StateCB simulation_cb;
 };
 #endif

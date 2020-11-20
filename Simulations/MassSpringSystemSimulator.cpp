@@ -1,6 +1,128 @@
 #include "MassSpringSystemSimulator.h"
 #include <d3dcompiler.h>
 #pragma comment(lib,"D3dcompiler.lib")
+
+// @yuphin : Refactor this mess
+// @yuphin : Switching between CS and CPU implementation is crashing the simulator, fix
+
+static HRESULT create_structured_buffer(ID3D11Device* device, 
+                                      UINT element_size, 
+                                      UINT count, 
+                                      void* init_data, ID3D11Buffer** buf_ptr) {
+    *buf_ptr = nullptr;
+    D3D11_BUFFER_DESC desc = {};
+    desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+    desc.ByteWidth = element_size * count;
+    desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    desc.StructureByteStride = element_size;
+
+    if(init_data) {
+        D3D11_SUBRESOURCE_DATA s_init_data;
+        s_init_data.pSysMem = init_data;
+        return device->CreateBuffer(&desc, &s_init_data, buf_ptr);
+    } else
+        return device->CreateBuffer(&desc, nullptr, buf_ptr);
+}
+
+static HRESULT create_raw_buffer(ID3D11Device* device,
+                                        UINT element_size,
+                                        UINT count,
+                                        void* init_data, ID3D11Buffer** buf_ptr) {
+    *buf_ptr = nullptr;
+    D3D11_BUFFER_DESC desc = {};
+    desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_VERTEX_BUFFER;
+    desc.ByteWidth = element_size * count;
+    desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
+    desc.StructureByteStride = element_size;
+
+    if(init_data) {
+        D3D11_SUBRESOURCE_DATA s_init_data;
+        s_init_data.pSysMem = init_data;
+        return device->CreateBuffer(&desc, &s_init_data, buf_ptr);
+    } else
+        return device->CreateBuffer(&desc, nullptr, buf_ptr);
+}
+
+
+static ID3D11Buffer* CreateAndCopyToDebugBuf(ID3D11Device* pDevice, ID3D11DeviceContext* pd3dImmediateContext, ID3D11Buffer* pBuffer) {
+    ID3D11Buffer* debugbuf = nullptr;
+
+    D3D11_BUFFER_DESC desc = {};
+    pBuffer->GetDesc(&desc);
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    desc.Usage = D3D11_USAGE_STAGING;
+    desc.BindFlags = 0;
+    desc.MiscFlags = 0;
+    if(SUCCEEDED(pDevice->CreateBuffer(&desc, nullptr, &debugbuf))) {
+#if defined(_DEBUG) || defined(PROFILE)
+        debugbuf->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof("Debug") - 1, "Debug");
+#endif
+
+        pd3dImmediateContext->CopyResource(debugbuf, pBuffer);
+    }
+
+    return debugbuf;
+}
+
+static HRESULT create_srv(ID3D11Device* device, 
+                               ID3D11Buffer* buffer, 
+                               ID3D11ShaderResourceView** srv_ptr) {
+    D3D11_BUFFER_DESC desc_buf = {};
+    buffer->GetDesc(&desc_buf);
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC desc = {};
+    desc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+    desc.BufferEx.FirstElement = 0;
+
+    if(desc_buf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) {
+        // This is a Raw Buffer
+
+        desc.Format = DXGI_FORMAT_R32_TYPELESS;
+        desc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
+        desc.BufferEx.NumElements = desc_buf.ByteWidth / 4;
+    } else
+        if(desc_buf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) {
+            // This is a Structured Buffer
+
+            desc.Format = DXGI_FORMAT_UNKNOWN;
+            desc.BufferEx.NumElements = desc_buf.ByteWidth / desc_buf.StructureByteStride;
+        } else {
+            return E_INVALIDARG;
+        }
+
+    return device->CreateShaderResourceView(buffer, &desc, srv_ptr);
+}
+
+HRESULT create_uav(ID3D11Device* device, 
+                   ID3D11Buffer* buffer, 
+                   ID3D11UnorderedAccessView** uav_ptr) {
+    D3D11_BUFFER_DESC desc_buf = {};
+    buffer->GetDesc(&desc_buf);
+
+    D3D11_UNORDERED_ACCESS_VIEW_DESC desc = {};
+    desc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+    desc.Buffer.FirstElement = 0;
+
+    if(desc_buf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) {
+        // This is a Raw Buffer
+
+        desc.Format = DXGI_FORMAT_R32_TYPELESS; // Format must be DXGI_FORMAT_R32_TYPELESS, when creating Raw Unordered Access View
+        desc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
+        desc.Buffer.NumElements = desc_buf.ByteWidth / 4;
+    } else
+        if(desc_buf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) {
+            // This is a Structured Buffer
+
+            desc.Format = DXGI_FORMAT_UNKNOWN;      // Format must be must be DXGI_FORMAT_UNKNOWN, when creating a View of a Structured Buffer
+            desc.Buffer.NumElements = desc_buf.ByteWidth / desc_buf.StructureByteStride;
+        } else {
+            return E_INVALIDARG;
+        }
+    return device->CreateUnorderedAccessView(buffer, &desc, uav_ptr);
+}
+
+
+
 MassSpringSystemSimulator::MassSpringSystemSimulator()
 {
     m_iTestCase = 0;
@@ -8,7 +130,7 @@ MassSpringSystemSimulator::MassSpringSystemSimulator()
 
 const char* MassSpringSystemSimulator::getTestCasesStr()
 {
-    return "Demo 1, Demo 2, Demo 3, Demo 4, Demo 4 Solid, Demo 5";
+    return "Demo 1, Demo 2, Demo 3, Demo 4 CS, Demo 4 CPU, Demo 5";
 }
  
 void MassSpringSystemSimulator::reset() {
@@ -29,7 +151,8 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
    
        
     switch(m_iTestCase) {
-        case 4:
+        case 3 : 
+        case 4 :
         {
             D3D11_RASTERIZER_DESC grid_state = {};
             grid_state.AntialiasedLineEnable = false;
@@ -51,48 +174,70 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
             XMMATRIX view = DUC->g_camera.GetViewMatrix();
             XMMATRIX proj = DUC->g_camera.GetProjMatrix();
             DirectX::XMStoreFloat4x4(
-                &constant_buffer_data.model,
+                &cloth_cb.model,
                 model
             );
             DirectX::XMStoreFloat4x4(
-                &constant_buffer_data.view,
+                &cloth_cb.view,
                 view
             );
             DirectX::XMStoreFloat4x4(
-                &constant_buffer_data.projection,
+                &cloth_cb.projection,
                 proj
             );
             auto mvp = model * view * proj;
             DirectX::XMStoreFloat4x4(
-                &constant_buffer_data.mvp,
+                &cloth_cb.mvp,
                 mvp
             );
 
             context->UpdateSubresource(
-                constant_buffer.Get(),
+                cloth_buffer.Get(),
                 0,
                 nullptr,
-                &constant_buffer_data,
+                &cloth_cb,
                 0,
                 0
             );
+            if(m_iTestCase == 4) {
 
-            update_vertex_data();
+                update_vertex_data();
+                context->UpdateSubresource(
+                    vertex_buffer.Get(),
+                    0,
+                    nullptr,
+                    vertices.data(),
+                    sizeof(MassPointVertex) * vertices.size(),
+                    0
+                );
+                context->IASetVertexBuffers(
+                    0,
+                    1,
+                    vertex_buffer.GetAddressOf(),
+                    &stride,
+                    &offset
+                );
+            } else {
+                // 3
+                context->IASetVertexBuffers(
+                    0,
+                    1,
+                    vertex_buffer.GetAddressOf(),
+                    &stride,
+                    &offset
+                );
 
-            context->UpdateSubresource(
-                vertex_buffer.Get(),
-                0,
-                nullptr,
-                vertices.data(),
-                sizeof(MassPointVertex) * vertices.size(),
-                0
-            );
+            }
+           
+           
+          
 
             context->IASetIndexBuffer(
                 index_buffer.Get(),
                 DXGI_FORMAT_R32_UINT,
                 0
             );
+
 
             context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             context->IASetInputLayout(input_layout.Get());
@@ -103,18 +248,12 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 0
             );
 
-            context->IASetVertexBuffers(
-                0,
-                1,
-                vertex_buffer.GetAddressOf(),
-                &stride,
-                &offset
-            );
+            
 
             context->VSSetConstantBuffers(
                 0,
                 1,
-                constant_buffer.GetAddressOf()
+                cloth_buffer.GetAddressOf()
             );
 
             context->PSSetShader(
@@ -172,15 +311,22 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
         D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "VS", "vs_5_0", 0, 0, &vs_blob, NULL);
         ID3DBlob* ps_blob = nullptr;
         D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "PS", "ps_5_0", 0, 0, &ps_blob, NULL);
+        ID3DBlob* cs_blob = nullptr;
+        ID3DBlob* err_blob = nullptr;
+        hr = D3DCompileFromFile(L"../Simulations/update.hlsl", NULL, NULL, "CS", "cs_5_0", 0, 0, &cs_blob, &err_blob);
+        if(FAILED(hr)) {
+            if(err_blob) {
+                printf("Error %s\n", err_blob->GetBufferPointer());
+            }
+        }
+
         device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), NULL, &vertex_shader);
         device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), NULL, &pixel_shader);
+        device->CreateComputeShader(cs_blob->GetBufferPointer(), cs_blob->GetBufferSize(), NULL, &compute_shader);
         D3D11_INPUT_ELEMENT_DESC iaDesc[] =
         {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
             0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-
-            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-            0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
 
         hr = device->CreateInputLayout(
@@ -192,22 +338,29 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
         );
 
         CD3D11_BUFFER_DESC cbDesc(
-            sizeof(ConstantBufferStruct),
+            sizeof(ClothCB),
             D3D11_BIND_CONSTANT_BUFFER
+        );
+        
+        // Maybe check for errors?
+        hr = device->CreateBuffer(
+            &cbDesc,
+            nullptr,
+            cloth_buffer.GetAddressOf()
         );
 
         hr = device->CreateBuffer(
             &cbDesc,
             nullptr,
-            constant_buffer.GetAddressOf()
+            simulation_buffer.GetAddressOf()
         );
        
     }
 
-    if(!vertex_buffer && m_iTestCase == 4) {
+    if(!vertex_buffer && (m_iTestCase == 4 || m_iTestCase == 3)) {
         std::vector<uint32_t> indices;
         // Updates MassPointVertex vector
-        update_vertex_data();
+        m_iTestCase == 3 ? update_vertex_extended() : update_vertex_data();
         CD3D11_BUFFER_DESC v_desc(
             sizeof(MassPointVertex) * mass_points.size(),
             D3D11_BIND_VERTEX_BUFFER
@@ -249,6 +402,17 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
             &iData,
             &index_buffer
         );
+
+        if(m_iTestCase == 3) {
+            // First time we create this buffer we want to fill it
+            create_structured_buffer(device, sizeof(MassPointVertex), mass_points.size(), 
+                                     vertices.data(), buffer_in.GetAddressOf());
+            create_structured_buffer(device, sizeof(MassPointVertex), mass_points.size(), 0,
+                                     buffer_out.GetAddressOf());
+            create_srv(device, buffer_in.Get(), &srv);
+            create_uav(device, buffer_out.Get(), &uav);
+
+        }
     }
 }
 
@@ -287,19 +451,19 @@ void MassSpringSystemSimulator::initScene()
         break;
     }
     case 3:
-        break;
+        // Fall thru
     case 4:
     {
-        this->setIntegrator(EULER);
+        this->setIntegrator(LEAPFROG);
         *timestep = 0.005f;
         // Initialize the grid
         this->mass = 10.0f;
-        this->damping = 20.0f;
-        this->stiffness = 40.0f;
-        Vec3 initial_velocity(0, 0, 0);
+        this->damping = 0.0f;
+        this->stiffness = 100.0f;
+        Vec3 initial_velocity(0, -0.05, 0);
         Vec3 initial_force(0, 0, 0);
         float spring_length = 1.0f / GRIDX; // Assume uniform grid for now
-        this->applyExternalForce(Vec3(0, -4.0, 0));
+        this->applyExternalForce(Vec3());
         int GRIDSIZE = GRIDX * GRIDY;
         float dx = 1.0f / GRIDX;
         float dy = 1.0f / GRIDY;
@@ -347,7 +511,27 @@ void MassSpringSystemSimulator::update_vertex_data() {
     for(int i = 0; i < mass_points.size(); i++) {
         DirectX::XMVECTOR pos = mass_points[i].position.toDirectXVector();
         XMStoreFloat3(&vertices[i].pos, pos);
-        vertices[i].normal = DirectX::XMFLOAT3(0.0, 1.0, 0.0);
+        // TODO?
+        // vertices[i].normal = DirectX::XMFLOAT3(0.0, 1.0, 0.0);
+    }
+}
+
+
+
+void MassSpringSystemSimulator::update_vertex_extended() {
+    assert(mass_points.size());
+    vertices.clear();
+    vertices.resize(mass_points.size());
+    for(int i = 0; i < mass_points.size(); i++) {
+        DirectX::XMVECTOR pos = mass_points[i].position.toDirectXVector();
+        DirectX::XMVECTOR vel = mass_points[i].velocity.toDirectXVector();
+        DirectX::XMVECTOR f = mass_points[i].force.toDirectXVector();
+        XMStoreFloat3(&vertices[i].pos, pos);
+        XMStoreFloat3(&vertices[i].vel, vel);
+        XMStoreFloat3(&vertices[i].f, f);
+        vertices[i].is_fixed = static_cast<uint32_t>(mass_points[i].is_fixed);
+        // TODO?
+        // vertices[i].normal = DirectX::XMFLOAT3(0.0, 1.0, 0.0);
     }
 }
 
@@ -368,10 +552,10 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
         cout << "Demo 3 !\n";
         break;
     case 3:
-        cout << "Demo 4 !\n";
+        cout << "Demo 4 Compute Shader !\n";
         break;
     case 4:
-        cout << "Demo 4 Solid !\n";
+        cout << "Demo 4 CPU !\n";
         break;
     case 5:
         cout << "Demo 5 !\n";
@@ -404,6 +588,11 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
 }
 
 
+MassSpringSystemSimulator::~MassSpringSystemSimulator() {
+    if(srv) srv->Release();
+    if(uav) uav->Release();
+}
+
 void MassSpringSystemSimulator::compute_elastic_force(const Spring& s) {
     auto& mp1 = mass_points[s.mp1];
     auto& mp2 = mass_points[s.mp2];
@@ -418,6 +607,65 @@ void MassSpringSystemSimulator::compute_elastic_force(const Spring& s) {
 
 void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     if (!running) {
+        return;
+    }
+    if(m_iTestCase == 3) {
+        auto context = DUC->g_pd3dImmediateContext;
+        simulation_cb.delta = time_step;
+        simulation_cb.sphere_radius = 1.0f;
+        simulation_cb.mass = mass;
+        simulation_cb.stiffness = stiffness;
+        simulation_cb.damping = damping;
+        simulation_cb.initial_len = 1.0f / GRIDX;
+        
+        auto spd = sphere_pos.toDirectXVector();
+        auto grid_dim = DirectX::XMVectorSet(GRIDX, GRIDY, 0, 0);
+        auto ef = external_force.toDirectXVector();
+
+        DirectX::XMStoreFloat3(&simulation_cb.sphere_pos, spd);
+        DirectX::XMStoreUInt2(&simulation_cb.grid_dim, grid_dim);
+        DirectX::XMStoreFloat3(&simulation_cb.external_force, ef);
+        context->UpdateSubresource(
+            simulation_buffer.Get(),
+            0,
+            nullptr,
+            &simulation_cb,
+            0,
+            0
+        );
+            
+        context->CSSetShader(compute_shader.Get(), nullptr, 0);
+        context->CSSetShaderResources(0, 1, &srv);
+        context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
+        context->CSSetConstantBuffers(
+            0,
+            1,
+            simulation_buffer.GetAddressOf()
+        );
+
+        context->Dispatch(GRIDX, GRIDY, 1);
+        context->CopyResource(buffer_in.Get(), buffer_out.Get());
+        context->CopyResource(vertex_buffer.Get(), buffer_out.Get());
+        // For debugging CS:
+        //{
+        //    ID3D11Buffer* debugbuf = CreateAndCopyToDebugBuf(DUC->g_ppd3Device, 
+        //                                                     context, buffer_out.Get());
+        //    D3D11_MAPPED_SUBRESOURCE MappedResource;
+        //    MassPointVertex* p;
+        //    context->Map(debugbuf, 0, D3D11_MAP_READ, 0, &MappedResource);
+        //    p = (MassPointVertex*) MappedResource.pData;
+        //    std::vector<MassPointVertex> as;
+        //    as.assign(p, p + mass_points.size());
+        //    context->UpdateSubresource(
+        //        vertex_buffer.Get(),
+        //        0,
+        //        nullptr,
+        //        p,
+        //        sizeof(MassPointVertex) * vertices.size(),
+        //        0
+        //    );
+        //    int a = 4;
+        //}
         return;
     }
 

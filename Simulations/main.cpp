@@ -380,7 +380,7 @@ int main(int argc, char* argv[])
 	DXUTSetCursorSettings( true, true ); // Show the cursor and clip it when in full screen
 	DXUTCreateWindow( L"Demo" );
 	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, 1280, 960 );
-    
+	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(g_pDUC->g_ppd3Device);
 	DXUTMainLoop(); // Enter into the DXUT render loop
 	delete g_pSimulator;
 	DXUTShutdown(); // Shuts down DXUT (includes calls to OnD3D11ReleasingSwapChain() and OnD3D11DestroyDevice())

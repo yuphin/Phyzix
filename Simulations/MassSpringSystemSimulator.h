@@ -86,6 +86,9 @@ public:
 		this->integrator = integrator;
 	}
 
+	void init_resources(ID3D11Device* device);
+	void fill_resources();
+
 	~MassSpringSystemSimulator();
 
 private:

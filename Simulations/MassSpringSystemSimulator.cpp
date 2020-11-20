@@ -1,127 +1,5 @@
 #include "MassSpringSystemSimulator.h"
-#include <d3dcompiler.h>
-#pragma comment(lib,"D3dcompiler.lib")
-
-// @yuphin : Refactor this mess
-// @yuphin : Switching between CS and CPU implementation is crashing the simulator, fix
-
-static HRESULT create_structured_buffer(ID3D11Device* device, 
-                                      UINT element_size, 
-                                      UINT count, 
-                                      void* init_data, ID3D11Buffer** buf_ptr) {
-    *buf_ptr = nullptr;
-    D3D11_BUFFER_DESC desc = {};
-    desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
-    desc.ByteWidth = element_size * count;
-    desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-    desc.StructureByteStride = element_size;
-
-    if(init_data) {
-        D3D11_SUBRESOURCE_DATA s_init_data;
-        s_init_data.pSysMem = init_data;
-        return device->CreateBuffer(&desc, &s_init_data, buf_ptr);
-    } else
-        return device->CreateBuffer(&desc, nullptr, buf_ptr);
-}
-
-static HRESULT create_raw_buffer(ID3D11Device* device,
-                                        UINT element_size,
-                                        UINT count,
-                                        void* init_data, ID3D11Buffer** buf_ptr) {
-    *buf_ptr = nullptr;
-    D3D11_BUFFER_DESC desc = {};
-    desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_VERTEX_BUFFER;
-    desc.ByteWidth = element_size * count;
-    desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
-    desc.StructureByteStride = element_size;
-
-    if(init_data) {
-        D3D11_SUBRESOURCE_DATA s_init_data;
-        s_init_data.pSysMem = init_data;
-        return device->CreateBuffer(&desc, &s_init_data, buf_ptr);
-    } else
-        return device->CreateBuffer(&desc, nullptr, buf_ptr);
-}
-
-
-static ID3D11Buffer* CreateAndCopyToDebugBuf(ID3D11Device* pDevice, ID3D11DeviceContext* pd3dImmediateContext, ID3D11Buffer* pBuffer) {
-    ID3D11Buffer* debugbuf = nullptr;
-
-    D3D11_BUFFER_DESC desc = {};
-    pBuffer->GetDesc(&desc);
-    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    desc.Usage = D3D11_USAGE_STAGING;
-    desc.BindFlags = 0;
-    desc.MiscFlags = 0;
-    if(SUCCEEDED(pDevice->CreateBuffer(&desc, nullptr, &debugbuf))) {
-#if defined(_DEBUG) || defined(PROFILE)
-        debugbuf->SetPrivateData(WKPDID_D3DDebugObjectName, sizeof("Debug") - 1, "Debug");
-#endif
-
-        pd3dImmediateContext->CopyResource(debugbuf, pBuffer);
-    }
-
-    return debugbuf;
-}
-
-static HRESULT create_srv(ID3D11Device* device, 
-                               ID3D11Buffer* buffer, 
-                               ID3D11ShaderResourceView** srv_ptr) {
-    D3D11_BUFFER_DESC desc_buf = {};
-    buffer->GetDesc(&desc_buf);
-
-    D3D11_SHADER_RESOURCE_VIEW_DESC desc = {};
-    desc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
-    desc.BufferEx.FirstElement = 0;
-
-    if(desc_buf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) {
-        // This is a Raw Buffer
-
-        desc.Format = DXGI_FORMAT_R32_TYPELESS;
-        desc.BufferEx.Flags = D3D11_BUFFEREX_SRV_FLAG_RAW;
-        desc.BufferEx.NumElements = desc_buf.ByteWidth / 4;
-    } else
-        if(desc_buf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) {
-            // This is a Structured Buffer
-
-            desc.Format = DXGI_FORMAT_UNKNOWN;
-            desc.BufferEx.NumElements = desc_buf.ByteWidth / desc_buf.StructureByteStride;
-        } else {
-            return E_INVALIDARG;
-        }
-
-    return device->CreateShaderResourceView(buffer, &desc, srv_ptr);
-}
-
-HRESULT create_uav(ID3D11Device* device, 
-                   ID3D11Buffer* buffer, 
-                   ID3D11UnorderedAccessView** uav_ptr) {
-    D3D11_BUFFER_DESC desc_buf = {};
-    buffer->GetDesc(&desc_buf);
-
-    D3D11_UNORDERED_ACCESS_VIEW_DESC desc = {};
-    desc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-    desc.Buffer.FirstElement = 0;
-
-    if(desc_buf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS) {
-        // This is a Raw Buffer
-
-        desc.Format = DXGI_FORMAT_R32_TYPELESS; // Format must be DXGI_FORMAT_R32_TYPELESS, when creating Raw Unordered Access View
-        desc.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_RAW;
-        desc.Buffer.NumElements = desc_buf.ByteWidth / 4;
-    } else
-        if(desc_buf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) {
-            // This is a Structured Buffer
-
-            desc.Format = DXGI_FORMAT_UNKNOWN;      // Format must be must be DXGI_FORMAT_UNKNOWN, when creating a View of a Structured Buffer
-            desc.Buffer.NumElements = desc_buf.ByteWidth / desc_buf.StructureByteStride;
-        } else {
-            return E_INVALIDARG;
-        }
-    return device->CreateUnorderedAccessView(buffer, &desc, uav_ptr);
-}
-
-
+#include "util/util.h"
 
 MassSpringSystemSimulator::MassSpringSystemSimulator()
 {
@@ -148,7 +26,6 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 
     uint32_t stride = sizeof(MassPointVertex);
     uint32_t offset = 0;
-   
        
     switch(m_iTestCase) {
         case 3 : 
@@ -200,7 +77,6 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 0
             );
             if(m_iTestCase == 4) {
-
                 update_vertex_data();
                 context->UpdateSubresource(
                     vertex_buffer.Get(),
@@ -228,17 +104,11 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 );
 
             }
-           
-           
-          
-
             context->IASetIndexBuffer(
                 index_buffer.Get(),
                 DXGI_FORMAT_R32_UINT,
                 0
             );
-
-
             context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             context->IASetInputLayout(input_layout.Get());
 
@@ -247,27 +117,21 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 nullptr,
                 0
             );
-
-            
-
             context->VSSetConstantBuffers(
                 0,
                 1,
                 cloth_buffer.GetAddressOf()
             );
-
             context->PSSetShader(
                 pixel_shader.Get(),
                 nullptr,
                 0
             );
-
             context->DrawIndexed(
                 index_count,
                 0,
                 0
             );
-
             context->RSSetState(rasterizer_old.Get());
             break;
         }
@@ -289,76 +153,75 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
             break;
         }
     }
-   
-
 }
 
 void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
     this->DUC = DUC;
-
     TwAddVarRW(DUC->g_pTweakBar, "Mass", TW_TYPE_FLOAT, &mass, "step=0.01 min=0.0001");
     TwAddVarRW(DUC->g_pTweakBar, "Stiffness", TW_TYPE_FLOAT, &stiffness, "step=0.1 min=0.0001");
     TwAddVarRW(DUC->g_pTweakBar, "Damping", TW_TYPE_FLOAT, &damping, "step=0.01 min=0.0001");
 
     TwType TW_TYPE_INTEGRATORTYPE = TwDefineEnumFromString("IntegrationType", "EULER,LEAPFROG,MIDPOINT");
     TwAddVarRW(DUC->g_pTweakBar, "IntegrationType", TW_TYPE_INTEGRATORTYPE, &integrator, "");
+}
 
-    ID3D11Device* device = DUC->g_ppd3Device;
+void MassSpringSystemSimulator::init_resources(ID3D11Device* device) {
     HRESULT hr = S_OK;
-    if(!vertex_shader) {
-        // Create shaders
-        ID3DBlob* vs_blob = nullptr;
-        D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "VS", "vs_5_0", 0, 0, &vs_blob, NULL);
-        ID3DBlob* ps_blob = nullptr;
-        D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "PS", "ps_5_0", 0, 0, &ps_blob, NULL);
-        ID3DBlob* cs_blob = nullptr;
-        ID3DBlob* err_blob = nullptr;
-        hr = D3DCompileFromFile(L"../Simulations/update.hlsl", NULL, NULL, "CS", "cs_5_0", 0, 0, &cs_blob, &err_blob);
-        if(FAILED(hr)) {
-            if(err_blob) {
-                printf("Error %s\n", err_blob->GetBufferPointer());
-            }
+    // Create shaders
+    ID3DBlob* vs_blob = nullptr;
+    D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "VS", "vs_5_0", 0, 0, &vs_blob, NULL);
+    ID3DBlob* ps_blob = nullptr;
+    D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "PS", "ps_5_0", 0, 0, &ps_blob, NULL);
+    ID3DBlob* cs_blob = nullptr;
+    ID3DBlob* err_blob = nullptr;
+    hr = D3DCompileFromFile(L"../Simulations/update.hlsl", NULL, NULL, "CS", "cs_5_0", 0, 0, &cs_blob, &err_blob);
+    if(FAILED(hr)) {
+        if(err_blob) {
+            printf("Error %s\n", err_blob->GetBufferPointer());
         }
-
-        device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), NULL, &vertex_shader);
-        device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), NULL, &pixel_shader);
-        device->CreateComputeShader(cs_blob->GetBufferPointer(), cs_blob->GetBufferSize(), NULL, &compute_shader);
-        D3D11_INPUT_ELEMENT_DESC iaDesc[] =
-        {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
-            0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        };
-
-        hr = device->CreateInputLayout(
-            iaDesc,
-            ARRAYSIZE(iaDesc),
-            vs_blob->GetBufferPointer(),
-            vs_blob->GetBufferSize(),
-            &input_layout
-        );
-
-        CD3D11_BUFFER_DESC cbDesc(
-            sizeof(ClothCB),
-            D3D11_BIND_CONSTANT_BUFFER
-        );
-        
-        // Maybe check for errors?
-        hr = device->CreateBuffer(
-            &cbDesc,
-            nullptr,
-            cloth_buffer.GetAddressOf()
-        );
-
-        hr = device->CreateBuffer(
-            &cbDesc,
-            nullptr,
-            simulation_buffer.GetAddressOf()
-        );
-       
     }
 
+    device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), NULL, &vertex_shader);
+    device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), NULL, &pixel_shader);
+    device->CreateComputeShader(cs_blob->GetBufferPointer(), cs_blob->GetBufferSize(), NULL, &compute_shader);
+    D3D11_INPUT_ELEMENT_DESC iaDesc[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
+        0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    hr = device->CreateInputLayout(
+        iaDesc,
+        ARRAYSIZE(iaDesc),
+        vs_blob->GetBufferPointer(),
+        vs_blob->GetBufferSize(),
+        &input_layout
+    );
+
+    CD3D11_BUFFER_DESC cb_desc(
+        sizeof(ClothCB),
+        D3D11_BIND_CONSTANT_BUFFER
+    );
+
+    // Maybe check for errors?
+    hr = device->CreateBuffer(
+        &cb_desc,
+        nullptr,
+        cloth_buffer.GetAddressOf()
+    );
+
+    hr = device->CreateBuffer(
+        &cb_desc,
+        nullptr,
+        simulation_buffer.GetAddressOf()
+    );
+}
+
+void MassSpringSystemSimulator::fill_resources() {
     if(update_vertex && (m_iTestCase == 4 || m_iTestCase == 3)) {
         update_vertex = false;
+        HRESULT hr = S_OK;
+        auto device = DUC->g_ppd3Device;
         std::vector<uint32_t> indices;
         // Updates MassPointVertex vector
         m_iTestCase == 3 ? update_vertex_extended() : update_vertex_data();
@@ -366,7 +229,6 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
             sizeof(MassPointVertex) * mass_points.size(),
             D3D11_BIND_VERTEX_BUFFER
         );
-
         D3D11_SUBRESOURCE_DATA v_data;
         ZeroMemory(&v_data, sizeof(D3D11_SUBRESOURCE_DATA));
         v_data.pSysMem = vertices.data();
@@ -380,7 +242,7 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
         for(int i = 0; i < GRIDY - 1; i++) {
             for(int j = 0; j < GRIDX; j++) {
                 // CCW?
-                indices.push_back((i) * GRIDX + j);
+                indices.push_back((i) *GRIDX + j);
                 indices.push_back((i + 1) * GRIDX + j);
             }
             // Primitive restart
@@ -411,7 +273,7 @@ void MassSpringSystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
                                          vertices.data(), buffer_in.GetAddressOf());
                 create_srv(device, buffer_in.Get(), &srv);
 
-            }else{
+            } else {
                 auto context = DUC->g_pd3dImmediateContext;
                 context->UpdateSubresource(buffer_in.Get(), 0, nullptr, vertices.data(), 0, 0);
             }
@@ -548,6 +410,7 @@ void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 {
     m_iTestCase = testCase;
     reset();
+    fill_resources();
 
     switch (m_iTestCase)
     {
@@ -595,6 +458,8 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
         }
     }
 }
+
+
 
 
 MassSpringSystemSimulator::~MassSpringSystemSimulator() {
@@ -734,11 +599,9 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
 
             for (int i = 0; i < mass_points.size(); i++) {
                 Vec3 accel = mass_points[i].force / mass;
-
                 mass_points[i].position = old_positions[i] + time_step * mass_points[i].velocity;
                 mass_points[i].velocity = old_velocities[i] + time_step * accel;
             }
-
             break;
         }
         default:

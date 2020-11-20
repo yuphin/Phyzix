@@ -643,7 +643,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
             simulation_buffer.GetAddressOf()
         );
 
-        context->Dispatch(GRIDX, GRIDY, 1);
+        context->Dispatch(GRIDX / NUM_THREADS_X , GRIDY / NUM_THREADS_Y, 1);
         context->CopyResource(buffer_in.Get(), buffer_out.Get());
         context->CopyResource(vertex_buffer.Get(), buffer_out.Get());
         // For debugging CS:

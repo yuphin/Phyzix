@@ -104,7 +104,8 @@ private:
 	// Maybe we can change these through UI?
 	int GRIDX = 20; // Try 100*100, we need to parallelize on the CPU too
 	int GRIDY = 20;
-
+	const int NUM_THREADS_X = 20;
+	const int NUM_THREADS_Y = 20;
 	// UI Attributes
 	Vec3 external_force;
 	Point2D mouse;

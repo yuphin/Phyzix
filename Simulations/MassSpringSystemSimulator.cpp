@@ -138,6 +138,7 @@ void MassSpringSystemSimulator::reset() {
     trackmouse.x = trackmouse.y = 0;
     old_trackmouse.x = old_trackmouse.y = 0;
     external_force = 0;
+    mouse_force = 0;
     springs.clear();
     mass_points.clear();
 
@@ -458,19 +459,19 @@ void MassSpringSystemSimulator::initScene()
         *timestep = 0.005f;
         // Initialize the grid
         this->mass = 10.0f;
-        this->damping = 0.0f;
-        this->stiffness = 100.0f;
+        this->damping = 3.0f;
+        this->stiffness = 100000.0f;
         Vec3 initial_velocity(0, -0.05, 0);
         Vec3 initial_force(0, 0, 0);
         float spring_length = 1.0f / GRIDX; // Assume uniform grid for now
-        this->applyExternalForce(Vec3());
+        this->applyExternalForce(Vec3(0, -10, 0));
         int GRIDSIZE = GRIDX * GRIDY;
         float dx = 1.0f / GRIDX;
         float dy = 1.0f / GRIDY;
         matrix4x4<float> t;
         this->mass_points.resize(GRIDX * GRIDY);
         this->springs.reserve(GRIDX * GRIDY * 2);
-        t.initTranslation(-0.5f, -0.5f, -0.5f);
+        t.initTranslation(-0.5f, 0.5f, -0.5f);
         for(int i = 0; i < GRIDY; i++) {
             for(int j = 0; j < GRIDX; j++) {
                 auto curr_idx = i * GRIDX + j;
@@ -480,7 +481,7 @@ void MassSpringSystemSimulator::initScene()
                  translated_pos,
                  initial_velocity,
                  initial_force,
-                 false
+                 i == 0 ? true : false
                 };
                 auto right = j < GRIDX-1 ? i * GRIDX + j + 1 : curr_idx;
                 auto bottom = i < GRIDY-1 ? (i + 1) * GRIDX + j : curr_idx;
@@ -578,12 +579,12 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
         Vec3 inputView = Vec3((float)mouseDiff.x, (float)-mouseDiff.y, 0);
         Vec3 inputWorld = worldViewInv.transformVectorNormal(inputView);
         // find a proper scale!
-        float inputScale = 0.001f;
+        float inputScale = 0.01f;
         inputWorld = inputWorld * inputScale;
-        
-        for (auto& masspoint : mass_points) {
-            masspoint.force += inputWorld;
-        }
+        mouse_force = inputWorld;
+    }
+    else {
+        mouse_force = {};
     }
 }
 
@@ -620,11 +621,12 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         
         auto spd = sphere_pos.toDirectXVector();
         auto grid_dim = DirectX::XMVectorSet(GRIDX, GRIDY, 0, 0);
-        auto ef = external_force.toDirectXVector();
+        auto ef = (external_force + mouse_force).toDirectXVector();
 
         DirectX::XMStoreFloat3(&simulation_cb.sphere_pos, spd);
         DirectX::XMStoreUInt2(&simulation_cb.grid_dim, grid_dim);
         DirectX::XMStoreFloat3(&simulation_cb.external_force, ef);
+
         context->UpdateSubresource(
             simulation_buffer.Get(),
             0,
@@ -674,7 +676,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     // Apply integrator
 
     for(auto& mp : mass_points) {
-        mp.force = this->external_force;
+        mp.force = this->external_force + mouse_force;
     }
     for(const auto& spring : springs) {
         compute_elastic_force(spring);
@@ -685,7 +687,9 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         {
             for(auto& mp : mass_points) {
                 Vec3 accel = mp.force / mass;
-                mp.position = mp.position + time_step * mp.velocity;
+                if (!mp.is_fixed) {
+                    mp.position = mp.position + time_step * mp.velocity;
+                }
                 mp.velocity = mp.velocity + time_step * accel;
             }
             break;
@@ -696,7 +700,9 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
                 Vec3 accel = mp.force / mass;
                 // Not tested
                 mp.velocity = mp.velocity + time_step * accel;
-                mp.position = mp.position + time_step * mp.velocity;
+                if (!mp.is_fixed) {
+                    mp.position = mp.position + time_step * mp.velocity;
+                }
             }
             break;
         }
@@ -711,7 +717,9 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
                 old_positions.push_back(mp.position);
                 old_velocities.push_back(mp.velocity);
 
-                mp.position = mp.position + time_step / 2.0f * mp.velocity;
+                if (!mp.is_fixed) {
+                    mp.position = mp.position + time_step / 2.0f * mp.velocity;
+                }
                 mp.velocity = mp.velocity + time_step / 2.0f * accel;
             }
 
@@ -726,7 +734,9 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
             for (int i = 0; i < mass_points.size(); i++) {
                 Vec3 accel = mass_points[i].force / mass;
 
-                mass_points[i].position = old_positions[i] + time_step * mass_points[i].velocity;
+                if (!mass_points[i].is_fixed) {
+                    mass_points[i].position = old_positions[i] + time_step * mass_points[i].velocity;
+                }
                 mass_points[i].velocity = old_velocities[i] + time_step * accel;
             }
 
@@ -744,6 +754,12 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
             cout << "Point " << i + 1 << " velocity: " << mp.velocity << "\n";
         }
         running = false;
+    }
+
+    for (auto& mp : mass_points) {
+        mp.position.x = clamp(mp.position.x, -2, 2);
+        mp.position.y = clamp(mp.position.y, -1, 2);
+        mp.position.z = clamp(mp.position.z, -2, 2);
     }
 }
 

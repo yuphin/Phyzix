@@ -48,6 +48,7 @@ struct StateCB {
 	float initial_len;
 	float padding;
 	DirectX::XMFLOAT3 external_force;
+	DirectX::XMFLOAT3 mouse_force;
 };
 
 class MassSpringSystemSimulator:public Simulator{
@@ -78,6 +79,7 @@ public:
 	Vec3 getPositionOfMassPoint(int index);
 	Vec3 getVelocityOfMassPoint(int index);
 	inline void applyExternalForce(Vec3 force) { external_force += force; };
+	inline float clamp(double value, double low, double high) { return (value < low) ? low : (high < value) ? high : value; }
 
 	void passTimestepVariable(float& time_step);
 
@@ -112,6 +114,7 @@ private:
 	Point2D trackmouse;
 	Point2D old_trackmouse;
 
+	Vec3 mouse_force;
 
 	float* timestep;
 	bool running;

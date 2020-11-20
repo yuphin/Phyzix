@@ -61,7 +61,20 @@ void CS(uint3 id : SV_DispatchThreadID) {
     
     // Integrate 
     float3 accel = force * (1.0 / mass);
-    buf_out[idx].pos = curr_pos + delta * curr_vel;
-    buf_out[idx].vel = curr_vel + delta * accel;
 
+    if(buf_in[idx].is_fixed == 0) {
+        buf_out[idx].vel = curr_vel + delta * accel;
+        buf_out[idx].pos = curr_pos + delta * buf_out[idx].vel;
+    }
+    else {
+        buf_out[idx].vel = curr_vel;
+        buf_out[idx].pos = curr_pos;
+    }
+
+    curr_pos = buf_out[idx].pos;
+    buf_out[idx].pos.x = clamp(curr_pos.x, -2, 2);
+    buf_out[idx].pos.y = clamp(curr_pos.y, -1, 2);
+    buf_out[idx].pos.z = clamp(curr_pos.z, -2, 2);
+
+    buf_out[idx].is_fixed = buf_in[idx].is_fixed;
 }

@@ -46,7 +46,7 @@ struct StateCB {
 	float stiffness;
 	float damping;
 	float initial_len;
-	float padding;
+	uint32_t num_cloths;
 	DirectX::XMFLOAT3 external_force;
 	DirectX::XMFLOAT3 mouse_force;
 };
@@ -99,7 +99,7 @@ private:
 	void initScene();
 	void update_vertex_data();
 	void update_vertex_extended();
-	
+	void create_free_cloth(const matrix4x4<float>& translation);
 	// Data Attributes
 	float mass;
 	float stiffness;
@@ -111,6 +111,7 @@ private:
 	int GRIDY = 20;
 	const int NUM_THREADS_X = 20;
 	const int NUM_THREADS_Y = 20;
+	const int  NUM_CLOTHS = 3;
 	// UI Attributes
 	Vec3 external_force;
 	Point2D mouse;
@@ -133,7 +134,8 @@ private:
 	std::vector<Vec3> old_velocities;
 	
 	uint32_t index_count;
-	Vec3 sphere_pos;
+	Vec3 sphere_pos = Vec3(0.0, -0.6, -0.25);
+	Vec3 cube_pos = Vec3(-1.25, -0.75, 0.75);
 
 	ComPtr<ID3D11Buffer> vertex_buffer;
 	ComPtr<ID3D11Buffer> index_buffer;

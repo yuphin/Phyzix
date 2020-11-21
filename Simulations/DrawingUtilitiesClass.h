@@ -176,15 +176,15 @@ void DrawBoundingBox(ID3D11DeviceContext* pd3dImmediateContext)
     // Lines in x direction (red color)
     for(int i = 0; i < 4; i++) {
         g_pPrimitiveBatchPositionColor->DrawLine(
-            VertexPositionColor(XMVectorSet(-2.0f, std::max(4.0f * ((float) (i % 2) - 0.5f), -0.9f), 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Red),
-            VertexPositionColor(XMVectorSet(2.0f, std::max(4.0f * ((float) (i % 2) - 0.5f), -0.9f), 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Red)
+            VertexPositionColor(XMVectorSet(-2.0f, std::max(4.0f * ((float) (i % 2) - 0.5f), -1.0f), 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Red),
+            VertexPositionColor(XMVectorSet(2.0f, std::max(4.0f * ((float) (i % 2) - 0.5f), -1.0f), 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Red)
         );
     }
 
     // Lines in y direction
     for(int i = 0; i < 4; i++) {
         g_pPrimitiveBatchPositionColor->DrawLine(
-            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), -0.9f, 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Green),
+            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), -1.0f, 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Green),
             VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), 2.0f, 4.0f * ((float) (i / 2) - 0.5f), 1), Colors::Green)
         );
     }
@@ -192,8 +192,8 @@ void DrawBoundingBox(ID3D11DeviceContext* pd3dImmediateContext)
     // Lines in z direction
     for(int i = 0; i < 4; i++) {
         g_pPrimitiveBatchPositionColor->DrawLine(
-            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), std::max(4.0f * ((float) (i / 2) - 0.5f), -0.9f), -2.0f, 1), Colors::Blue),
-            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), std::max(4.0f * ((float) (i / 2) - 0.5f), -0.9f), 2.0f, 1), Colors::Blue)
+            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), std::max(4.0f * ((float) (i / 2) - 0.5f), -1.0f), -2.0f, 1), Colors::Blue),
+            VertexPositionColor(XMVectorSet(4.0f * ((float) (i % 2) - 0.5f), std::max(4.0f * ((float) (i / 2) - 0.5f), -1.0f), 2.0f, 1), Colors::Blue)
         );
     }
 
@@ -375,6 +375,20 @@ void drawRigidBody(const XMMATRIX& m_objToWorld)
 void drawRigidBody(Mat4 m_objToWorld)
 {
 	drawRigidBody(m_objToWorld.toDirectXMatrix());
+}
+
+void drawRigidBody(Vec3 pos, Vec3 rot, Vec3 scale) {
+    XMMATRIX s = XMMatrixScaling(XMVectorGetX(scale.toDirectXVector()), 
+                                 XMVectorGetY(scale.toDirectXVector()), 
+                                 XMVectorGetZ(scale.toDirectXVector()));
+
+    XMMATRIX t = XMMatrixTranslation(XMVectorGetX(pos.toDirectXVector()), 
+                                     XMVectorGetY(pos.toDirectXVector()), 
+                                     XMVectorGetZ(pos.toDirectXVector()));
+    XMMATRIX r = XMMatrixRotationRollPitchYaw(XMVectorGetX(rot.toDirectXVector()), 
+                                              XMVectorGetX(rot.toDirectXVector()), 
+                                              XMVectorGetX(rot.toDirectXVector()));
+    drawRigidBody(r * s * t * g_camera.GetWorldMatrix());
 }
 
 void DrawTriangleUsingShaders()

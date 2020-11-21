@@ -79,12 +79,14 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
             );
             if(m_iTestCase == 4) {
                 update_vertex_data();
+
+
                 context->UpdateSubresource(
                     vertex_buffer.Get(),
                     0,
                     nullptr,
                     vertices.data(),
-                    sizeof(MassPointVertex) * vertices.size(),
+                    sizeof(MassPointVertex) * mass_points.size(),
                     0
                 );
                 context->IASetVertexBuffers(
@@ -133,6 +135,11 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 0,
                 0
             );
+
+            DUC->setUpLighting(Vec3(), 0.4 * Vec3(1, 1, 1), 100,
+                               0.6 * Vec3(0.5, 0.4 , 0.23));
+            DUC->drawSphere(sphere_pos, Vec3(0.4, 0.4, 0.4));
+            DUC->drawRigidBody(cube_pos, Vec3(), Vec3(0.5, 0.5, 0.5));
             context->RSSetState(rasterizer_old.Get());
             break;
         }
@@ -240,14 +247,18 @@ void MassSpringSystemSimulator::fill_resources() {
             &v_data,
             &vertex_buffer
         );
-        for(int i = 0; i < GRIDY - 1; i++) {
-            for(int j = 0; j < GRIDX; j++) {
-                // CCW?
-                indices.push_back((i) *GRIDX + j);
-                indices.push_back((i + 1) * GRIDX + j);
+
+
+        for(int k = 0; k < NUM_CLOTHS; k++) {
+            for(int i = 0; i < GRIDY - 1; i++) {
+                for(int j = 0; j < GRIDX; j++) {
+                    // CCW?
+                    indices.push_back(k * GRIDX * GRIDY + i * GRIDX + j);
+                    indices.push_back(k * GRIDX * GRIDY + (i + 1) * GRIDX + j);
+                }
+                // Primitive restart
+                indices.push_back(-1);
             }
-            // Primitive restart
-            indices.push_back(-1);
         }
 
         CD3D11_BUFFER_DESC iDesc(
@@ -327,10 +338,11 @@ void MassSpringSystemSimulator::initScene()
     case 4:
     {
         this->setIntegrator(LEAPFROG);
+        // # of cloths to be presented in our demo
         *timestep = 0.005f;
         // Initialize the grid
         this->mass = 10.0f;
-        this->damping = 3.0f;
+        this->damping = 0.0f;
         this->stiffness = 100000.0f;
         Vec3 initial_velocity(0, -0.05, 0);
         Vec3 initial_force(0, 0, 0);
@@ -340,27 +352,34 @@ void MassSpringSystemSimulator::initScene()
         float dx = 1.0f / GRIDX;
         float dy = 1.0f / GRIDY;
         matrix4x4<float> t;
-        this->mass_points.resize(GRIDX * GRIDY);
-        this->springs.reserve(GRIDX * GRIDY * 2);
-        t.initTranslation(-0.5f, 0.5f, -0.5f);
-        for(int i = 0; i < GRIDY; i++) {
-            for(int j = 0; j < GRIDX; j++) {
-                auto curr_idx = i * GRIDX + j;
-                Vec3 pos(dx * j, 0.2f, dy * i);
-                auto translated_pos = t.transformVector(pos);
-                mass_points[curr_idx] = {
-                 translated_pos,
-                 initial_velocity,
-                 initial_force,
-                 i == 0 ? true : false
-                };
-                auto right = j < GRIDX-1 ? i * GRIDX + j + 1 : curr_idx;
-                auto bottom = i < GRIDY-1 ? (i + 1) * GRIDX + j : curr_idx;
-                if(curr_idx != right) {
-                    springs.push_back({ curr_idx,  right, spring_length });
-                }
-                if(curr_idx != bottom) {
-                    springs.push_back({ curr_idx,  bottom, spring_length });
+        matrix4x4<float> t2;
+        matrix4x4<float> t3;
+        t.initTranslation(-0.75f, 0.5f, -1.75f);
+        t2.initTranslation(sphere_pos.x - 0.5, sphere_pos.y + 1.0, sphere_pos.z - 0.5);
+        t3.initTranslation(cube_pos.x - 0.5, cube_pos.y + 1.0, cube_pos.z - 0.5);
+        matrix4x4<float> ts[3] = {t,t2,t3 };
+        this->mass_points.resize(GRIDX * GRIDY * NUM_CLOTHS);
+        this->springs.reserve(GRIDX * GRIDY * 2 * NUM_CLOTHS);
+        for(int k = 0; k < NUM_CLOTHS; k++) {
+            for(int i = 0; i < GRIDY; i++) {
+                for(int j = 0; j < GRIDX; j++) {
+                    auto curr_idx = k * GRIDX * GRIDY + i * GRIDX + j;
+                    Vec3 pos(dx * j, 0.2f, dy * i);
+                    Vec3 t_pos = ts[k].transformVector(pos);
+                    mass_points[curr_idx] = {
+                     t_pos,
+                     initial_velocity,
+                     initial_force,
+                     !i && !k ? true : false
+                    };
+                    auto right = j < GRIDX - 1 ? k * GRIDX * GRIDY +  i * GRIDX + j + 1 : curr_idx;
+                    auto bottom = i < GRIDY - 1 ? k * GRIDX * GRIDY + (i + 1) * GRIDX + j : curr_idx;
+                    if(curr_idx != right) {
+                        springs.push_back({ curr_idx,  right, spring_length });
+                    }
+                    if(curr_idx != bottom) {
+                        springs.push_back({ curr_idx,  bottom, spring_length });
+                    }
                 }
             }
         }
@@ -406,6 +425,11 @@ void MassSpringSystemSimulator::update_vertex_extended() {
         // vertices[i].normal = DirectX::XMFLOAT3(0.0, 1.0, 0.0);
     }
 }
+
+void MassSpringSystemSimulator::create_free_cloth(const matrix4x4<float>& translation) {
+
+}
+
 
 void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 {
@@ -489,7 +513,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         simulation_cb.stiffness = stiffness;
         simulation_cb.damping = damping;
         simulation_cb.initial_len = 1.0f / GRIDX;
-        
+        simulation_cb.num_cloths = NUM_CLOTHS;
         auto spd = sphere_pos.toDirectXVector();
         auto grid_dim = DirectX::XMVectorSet(GRIDX, GRIDY, 0, 0);
         auto ef = (external_force + mouse_force).toDirectXVector();
@@ -628,7 +652,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
 
     for (auto& mp : mass_points) {
         mp.position.x = clamp(mp.position.x, -2, 2);
-        mp.position.y = clamp(mp.position.y, -1, 2);
+        mp.position.y = clamp(mp.position.y, -0.999, 2);
         mp.position.z = clamp(mp.position.z, -2, 2);
     }
 }

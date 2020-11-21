@@ -16,6 +16,7 @@ struct MassPoint {
 	Vec3 velocity;
 	Vec3 force;
 	bool is_fixed;
+	bool colliding = false;
 };
 
 struct Spring {
@@ -48,6 +49,8 @@ struct StateCB {
 	float initial_len;
 	uint32_t num_cloths;
 	DirectX::XMFLOAT3 external_force;
+	float cube_radius;
+	DirectX::XMFLOAT3 cube_pos;
 	DirectX::XMFLOAT3 mouse_force;
 };
 
@@ -79,7 +82,19 @@ public:
 	Vec3 getPositionOfMassPoint(int index);
 	Vec3 getVelocityOfMassPoint(int index);
 	inline void applyExternalForce(Vec3 force) { external_force += force; };
-	inline float clamp(double value, double low, double high) { return (value < low) ? low : (high < value) ? high : value; }
+	inline float clamp(float value, float low, float high) { 
+		return (value < low) ? low : (high < value) ? high : value; 
+	}
+	inline Vec3 clamp(const Vec3& value, float low , float high) {
+		auto x = clamp(value.x, low, high);
+		auto y = clamp(value.y, low, high);
+		auto z = clamp(value.z, low, high);
+		return Vec3(x,y,z);
+	}
+	template <typename T> 
+	int sign(T val) {
+		return (T(0) < val) - (val < T(0));
+	}
 
 	void passTimestepVariable(float& time_step);
 
@@ -99,7 +114,7 @@ private:
 	void initScene();
 	void update_vertex_data();
 	void update_vertex_extended();
-	void create_free_cloth(const matrix4x4<float>& translation);
+	void compute_collision();
 	// Data Attributes
 	float mass;
 	float stiffness;
@@ -107,7 +122,7 @@ private:
 	int integrator;
 
 	// Maybe we can change these through UI?
-	int GRIDX = 20; // Try 100*100, we need to parallelize on the CPU too
+	int GRIDX = 20;
 	int GRIDY = 20;
 	const int NUM_THREADS_X = 20;
 	const int NUM_THREADS_Y = 20;
@@ -134,8 +149,10 @@ private:
 	std::vector<Vec3> old_velocities;
 	
 	uint32_t index_count;
-	Vec3 sphere_pos = Vec3(0.0, -0.6, -0.25);
-	Vec3 cube_pos = Vec3(-1.25, -0.75, 0.75);
+	Vec3 sphere_pos = Vec3(0.0, 0.0, -0.25);
+	Vec3 cube_pos = Vec3(-1.25, 0.0, 0.75);
+	float sphere_rad = 0.35;
+	float cube_rad = 0.3;
 
 	ComPtr<ID3D11Buffer> vertex_buffer;
 	ComPtr<ID3D11Buffer> index_buffer;

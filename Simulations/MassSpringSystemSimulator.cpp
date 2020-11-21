@@ -24,7 +24,6 @@ void MassSpringSystemSimulator::reset() {
 }
 
 void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
-
     uint32_t stride = sizeof(MassPointVertex);
     uint32_t offset = 0;
        
@@ -138,8 +137,8 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 
             DUC->setUpLighting(Vec3(), 0.4 * Vec3(1, 1, 1), 100,
                                0.6 * Vec3(0.5, 0.4 , 0.23));
-            DUC->drawSphere(sphere_pos, Vec3(0.4, 0.4, 0.4));
-            DUC->drawRigidBody(cube_pos, Vec3(), Vec3(0.5, 0.5, 0.5));
+            DUC->drawSphere(sphere_pos, Vec3(sphere_rad, sphere_rad, sphere_rad));
+            DUC->drawRigidBody(cube_pos, Vec3(), Vec3(2 * cube_rad, 2 * cube_rad, 2 * cube_rad));
             context->RSSetState(rasterizer_old.Get());
             break;
         }
@@ -147,7 +146,6 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
         {
             std::mt19937 eng;
             std::uniform_real_distribution<float> randCol(0.0f, 1.0f);
-
             for (auto& mp : mass_points) {
                 DUC->setUpLighting(Vec3(), 0.4 * Vec3(1, 1, 1), 100, 0.6 * Vec3(randCol(eng), randCol(eng), randCol(eng)));
                 DUC->drawSphere(mp.position, Vec3(0.1, 0.1, 0.1));
@@ -342,7 +340,7 @@ void MassSpringSystemSimulator::initScene()
         *timestep = 0.005f;
         // Initialize the grid
         this->mass = 10.0f;
-        this->damping = 0.0f;
+        this->damping = 4.0f;
         this->stiffness = 100000.0f;
         Vec3 initial_velocity(0, -0.05, 0);
         Vec3 initial_force(0, 0, 0);
@@ -355,7 +353,7 @@ void MassSpringSystemSimulator::initScene()
         matrix4x4<float> t2;
         matrix4x4<float> t3;
         t.initTranslation(-0.75f, 0.5f, -1.75f);
-        t2.initTranslation(sphere_pos.x - 0.5, sphere_pos.y + 1.0, sphere_pos.z - 0.5);
+        t2.initTranslation(sphere_pos.x - 0.55, sphere_pos.y + 1.0, sphere_pos.z - 0.55);
         t3.initTranslation(cube_pos.x - 0.5, cube_pos.y + 1.0, cube_pos.z - 0.5);
         matrix4x4<float> ts[3] = {t,t2,t3 };
         this->mass_points.resize(GRIDX * GRIDY * NUM_CLOTHS);
@@ -407,8 +405,6 @@ void MassSpringSystemSimulator::update_vertex_data() {
     }
 }
 
-
-
 void MassSpringSystemSimulator::update_vertex_extended() {
     assert(mass_points.size());
     vertices.clear();
@@ -425,11 +421,6 @@ void MassSpringSystemSimulator::update_vertex_extended() {
         // vertices[i].normal = DirectX::XMFLOAT3(0.0, 1.0, 0.0);
     }
 }
-
-void MassSpringSystemSimulator::create_free_cloth(const matrix4x4<float>& translation) {
-
-}
-
 
 void MassSpringSystemSimulator::notifyCaseChanged(int testCase)
 {
@@ -501,6 +492,52 @@ void MassSpringSystemSimulator::compute_elastic_force(const Spring& s) {
     mp2.force += -f  - damping * mp2.velocity;
 }
 
+void MassSpringSystemSimulator::compute_collision() {
+    const float dn = 0.001;
+    for(auto& mp : mass_points) {
+        // Sphere collision
+        auto dist_sphere = mp.position - sphere_pos;
+        if(norm(dist_sphere) < sphere_rad + dn) {
+            mp.velocity = 0;
+            normalize(dist_sphere);
+            mp.position = sphere_pos + dist_sphere * (sphere_rad + dn);
+            mp.colliding = true;
+        } else {
+            mp.colliding = false;
+        }
+        // Cube collision
+        auto dist_cube = mp.position - cube_pos;
+        auto cube_boundary = cube_rad + 20.0 * dn;
+        auto clamped = clamp(dist_cube, -cube_boundary, cube_boundary);
+        Vec3 axis;
+        if(abs(clamped.x) > cube_rad) {
+            axis[0] += sign(clamped.x);
+        }
+        if(abs(clamped.y) > cube_rad) {
+            axis[1] += sign(clamped.y);
+        }
+        if(abs(clamped.z) > cube_rad) {
+            axis[2] += sign(clamped.z);
+        }
+        if(norm(dist_cube - clamped) < dn) {
+            mp.velocity = 0;
+            mp.position += axis * dn;
+            mp.colliding = true;
+        } else {
+            mp.colliding = false;
+        }
+
+        // Floor collision
+        if(mp.position < -1.0f) {
+            mp.position = -1.0f + dn;
+            mp.velocity = 0;
+            mp.colliding = true;
+        } else {
+            mp.colliding = false;
+        }
+    }
+}
+
 void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     if (!running) {
         return;
@@ -508,7 +545,8 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     if(m_iTestCase == 3) {
         auto context = DUC->g_pd3dImmediateContext;
         simulation_cb.delta = time_step;
-        simulation_cb.sphere_radius = 1.0f;
+        simulation_cb.sphere_radius = sphere_rad;
+        simulation_cb.cube_radius = cube_rad;
         simulation_cb.mass = mass;
         simulation_cb.stiffness = stiffness;
         simulation_cb.damping = damping;
@@ -517,7 +555,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         auto spd = sphere_pos.toDirectXVector();
         auto grid_dim = DirectX::XMVectorSet(GRIDX, GRIDY, 0, 0);
         auto ef = (external_force + mouse_force).toDirectXVector();
-
+        DirectX::XMStoreFloat3(&simulation_cb.cube_pos, cube_pos.toDirectXVector());
         DirectX::XMStoreFloat3(&simulation_cb.sphere_pos, spd);
         DirectX::XMStoreUInt2(&simulation_cb.grid_dim, grid_dim);
         DirectX::XMStoreFloat3(&simulation_cb.external_force, ef);
@@ -544,25 +582,25 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         context->CopyResource(buffer_in.Get(), buffer_out.Get());
         context->CopyResource(vertex_buffer.Get(), buffer_out.Get());
         // For debugging CS:
-        //{
-        //    ID3D11Buffer* debugbuf = CreateAndCopyToDebugBuf(DUC->g_ppd3Device, 
-        //                                                     context, buffer_out.Get());
-        //    D3D11_MAPPED_SUBRESOURCE MappedResource;
-        //    MassPointVertex* p;
-        //    context->Map(debugbuf, 0, D3D11_MAP_READ, 0, &MappedResource);
-        //    p = (MassPointVertex*) MappedResource.pData;
-        //    std::vector<MassPointVertex> as;
-        //    as.assign(p, p + mass_points.size());
-        //    context->UpdateSubresource(
-        //        vertex_buffer.Get(),
-        //        0,
-        //        nullptr,
-        //        p,
-        //        sizeof(MassPointVertex) * vertices.size(),
-        //        0
-        //    );
-        //    int a = 4;
-        //}
+        /*{
+            ID3D11Buffer* debugbuf = CreateAndCopyToDebugBuf(DUC->g_ppd3Device, 
+                                                             context, buffer_out.Get());
+            D3D11_MAPPED_SUBRESOURCE MappedResource;
+            MassPointVertex* p;
+            context->Map(debugbuf, 0, D3D11_MAP_READ, 0, &MappedResource);
+            p = (MassPointVertex*) MappedResource.pData;
+            std::vector<MassPointVertex> as;
+            as.assign(p, p + mass_points.size());
+            context->UpdateSubresource(
+                vertex_buffer.Get(),
+                0,
+                nullptr,
+                p,
+                sizeof(MassPointVertex) * vertices.size(),
+                0
+            );
+            int a = 4;
+        }*/
         return;
     }
 
@@ -576,13 +614,16 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     for(const auto& spring : springs) {
         compute_elastic_force(spring);
     }
+    
+    // Side effect
+    compute_collision();
 
     switch(integrator) {
         case EULER:
         {
             for(auto& mp : mass_points) {
                 Vec3 accel = mp.force / mass;
-                if (!mp.is_fixed) {
+                if (!mp.is_fixed && !mp.colliding) {
                     mp.position = mp.position + time_step * mp.velocity;
                 }
                 mp.velocity = mp.velocity + time_step * accel;
@@ -650,11 +691,11 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         running = false;
     }
 
-    for (auto& mp : mass_points) {
+    /*for (auto& mp : mass_points) {
         mp.position.x = clamp(mp.position.x, -2, 2);
         mp.position.y = clamp(mp.position.y, -0.999, 2);
         mp.position.z = clamp(mp.position.z, -2, 2);
-    }
+    }*/
 }
 
 void MassSpringSystemSimulator::onClick(int x, int y) {

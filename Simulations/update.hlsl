@@ -15,6 +15,7 @@ cbuffer StateCB : register(b0) {
 
 struct MassPoint {
     float3 pos;
+    float2 uv;
     float3 vel;
     float3 f;
     uint is_fixed;
@@ -109,7 +110,7 @@ void CS(uint3 id : SV_DispatchThreadID) {
         //buf_out[idx].pos.z = clamp(curr_pos.z, -2, 2);
 
         buf_out[idx].is_fixed = buf_in[idx].is_fixed;
-        buf_out[idx].f = axis;
+        buf_out[idx].uv = buf_in[idx].uv;
     }
   
 }

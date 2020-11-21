@@ -111,6 +111,7 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 DXGI_FORMAT_R32_UINT,
                 0
             );
+
             context->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             context->IASetInputLayout(input_layout.Get());
 
@@ -129,6 +130,9 @@ void MassSpringSystemSimulator::drawFrame(ID3D11DeviceContext* context) {
                 nullptr,
                 0
             );
+            context->PSSetSamplers(0, 1, &sampler_state);
+            context->PSSetShaderResources(0, 1, &texture_view);
+           
             context->DrawIndexed(
                 index_count,
                 0,
@@ -186,7 +190,13 @@ void MassSpringSystemSimulator::init_resources(ID3D11Device* device) {
             printf("Error %s\n", err_blob->GetBufferPointer());
         }
     }
-
+    hr = CreateDDSTextureFromFile(device, L"../Simulations/4WeirdW.dds",
+                                  nullptr, &texture_view);
+    if(FAILED(hr)) {
+        printf("Failed to load texture\n");
+    }
+    create_sampler(device, &sampler_state);
+    
     device->CreateVertexShader(vs_blob->GetBufferPointer(), vs_blob->GetBufferSize(), NULL, &vertex_shader);
     device->CreatePixelShader(ps_blob->GetBufferPointer(), ps_blob->GetBufferSize(), NULL, &pixel_shader);
     device->CreateComputeShader(cs_blob->GetBufferPointer(), cs_blob->GetBufferSize(), NULL, &compute_shader);
@@ -194,6 +204,9 @@ void MassSpringSystemSimulator::init_resources(ID3D11Device* device) {
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,
         0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD0", 0, DXGI_FORMAT_R32G32_FLOAT,
+        0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+
     };
 
     hr = device->CreateInputLayout(
@@ -353,6 +366,8 @@ void MassSpringSystemSimulator::initScene()
         int GRIDSIZE = GRIDX * GRIDY;
         float dx = 1.0f / GRIDX;
         float dy = 1.0f / GRIDY;
+        float du = 1.0f / GRIDX;
+        float dv = 1.0f / GRIDY;
         matrix4x4<float> t;
         matrix4x4<float> t2;
         matrix4x4<float> t3;
@@ -372,7 +387,8 @@ void MassSpringSystemSimulator::initScene()
                      t_pos,
                      initial_velocity,
                      initial_force,
-                     !i && !k ? true : false
+                     !i && !k ? true : false,
+                     {du * i, dv * j, 0}
                     };
                     auto right = j < GRIDX - 1 ? k * GRIDX * GRIDY +  i * GRIDX + j + 1 : curr_idx;
                     auto bottom = i < GRIDY - 1 ? k * GRIDX * GRIDY + (i + 1) * GRIDX + j : curr_idx;
@@ -404,7 +420,9 @@ void MassSpringSystemSimulator::update_vertex_data() {
     vertices.resize(mass_points.size());
     for(int i = 0; i < mass_points.size(); i++) {
         DirectX::XMVECTOR pos = mass_points[i].position.toDirectXVector();
+        DirectX::XMVECTOR uv = mass_points[i].uv.toDirectXVector();
         XMStoreFloat3(&vertices[i].pos, pos);
+        XMStoreFloat2(&vertices[i].uv, uv);
         // TODO?
         // vertices[i].normal = DirectX::XMFLOAT3(0.0, 1.0, 0.0);
     }
@@ -418,9 +436,11 @@ void MassSpringSystemSimulator::update_vertex_extended() {
         DirectX::XMVECTOR pos = mass_points[i].position.toDirectXVector();
         DirectX::XMVECTOR vel = mass_points[i].velocity.toDirectXVector();
         DirectX::XMVECTOR f = mass_points[i].force.toDirectXVector();
+        DirectX::XMVECTOR uv = mass_points[i].uv.toDirectXVector();
         XMStoreFloat3(&vertices[i].pos, pos);
         XMStoreFloat3(&vertices[i].vel, vel);
         XMStoreFloat3(&vertices[i].f, f);
+        XMStoreFloat2(&vertices[i].uv, uv);
         vertices[i].is_fixed = static_cast<uint32_t>(mass_points[i].is_fixed);
         // TODO?
         // vertices[i].normal = DirectX::XMFLOAT3(0.0, 1.0, 0.0);
@@ -755,5 +775,7 @@ void MassSpringSystemSimulator::passTimestepVariable(float& time_step)
 MassSpringSystemSimulator::~MassSpringSystemSimulator() {
     if(srv) srv->Release();
     if(uav) uav->Release();
+    if(texture_view) texture_view->Release();
+    if(sampler_state) sampler_state->Release();
 }
 

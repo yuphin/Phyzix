@@ -4,6 +4,7 @@
 
 #include <string>
 #include <DXUT.h>
+#include <DDSTextureLoader.h>
 #include <d3dcompiler.h>
 #pragma comment(lib,"D3dcompiler.lib")
 
@@ -29,7 +30,7 @@ HRESULT create_srv(ID3D11Device* device,
 HRESULT create_uav(ID3D11Device* device,
                    ID3D11Buffer* buffer,
                    ID3D11UnorderedAccessView** uav_ptr);
-
+HRESULT create_sampler(ID3D11Device* device, ID3D11SamplerState** sampler_state_ptr);
 
 
 std::wstring GetExePath();

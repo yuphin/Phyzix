@@ -1,9 +1,6 @@
 #include "util.h"
-
 #include <Windows.h>
-
 #include <DXUT.h>
-
 
 std::wstring GetExePath()
 {
@@ -171,4 +168,13 @@ HRESULT create_uav(ID3D11Device* device,
             return E_INVALIDARG;
         }
     return device->CreateUnorderedAccessView(buffer, &desc, uav_ptr);
+}
+
+HRESULT create_sampler(ID3D11Device* device, ID3D11SamplerState** sampler_state_ptr) {
+    D3D11_SAMPLER_DESC desc = {};
+    desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    return device->CreateSamplerState(&desc, sampler_state_ptr);
 }

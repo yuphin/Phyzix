@@ -16,7 +16,9 @@ struct MassPoint {
 	Vec3 velocity;
 	Vec3 force;
 	bool is_fixed;
+	Vec3 uv;
 	bool colliding = false;
+
 };
 
 struct Spring {
@@ -26,6 +28,7 @@ struct Spring {
 
 struct MassPointVertex {
 	DirectX::XMFLOAT3 pos;
+	DirectX::XMFLOAT2 uv;
 	DirectX::XMFLOAT3 vel;
 	DirectX::XMFLOAT3 f;
 	uint32_t is_fixed;
@@ -167,6 +170,8 @@ private:
 	ComPtr<ID3D11ComputeShader> compute_shader;
 	ComPtr<ID3D11Buffer> buffer_in;
 	ComPtr<ID3D11Buffer> buffer_out;
+	ID3D11ShaderResourceView* texture_view;
+	ID3D11SamplerState* sampler_state;
 	ID3D11ShaderResourceView* srv = nullptr;
 	ID3D11UnorderedAccessView* uav = nullptr;
 	ClothCB cloth_cb;

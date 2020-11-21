@@ -498,14 +498,13 @@ void MassSpringSystemSimulator::compute_collision() {
     for(auto& mp : mass_points) {
         // Sphere collision
         auto dist_sphere = mp.position - sphere_pos;
+        mp.colliding = false;
         if(norm(dist_sphere) < sphere_rad + dn) {
             mp.velocity = 0;
             normalize(dist_sphere);
             mp.position = sphere_pos + dist_sphere * (sphere_rad + dn);
             mp.colliding = true;
-        } else {
-            mp.colliding = false;
-        }
+        }        
         // Cube collision
         auto dist_cube = mp.position - cube_pos;
         auto cube_boundary = cube_rad + 20.0 * dn;
@@ -524,17 +523,12 @@ void MassSpringSystemSimulator::compute_collision() {
             mp.velocity = 0;
             mp.position += axis * dn;
             mp.colliding = true;
-        } else {
-            mp.colliding = false;
         }
-
         // Floor collision
         if(mp.position < -1.0f) {
             mp.position = -1.0f + dn;
             mp.velocity = 0;
             mp.colliding = true;
-        } else {
-            mp.colliding = false;
         }
     }
 }

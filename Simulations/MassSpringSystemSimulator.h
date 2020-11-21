@@ -138,6 +138,7 @@ private:
 	float* timestep;
 	bool running;
 	bool update_vertex = true;
+	bool enable_collision = false;
 
 	// Custom attributes
 	std::vector<MassPoint> mass_points;

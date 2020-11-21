@@ -301,7 +301,7 @@ void MassSpringSystemSimulator::initScene()
 {
     running = true;
 
-    if (m_iTestCase >= 0 && m_iTestCase <= 2) {
+    if (!(m_iTestCase == 4 && m_iTestCase == 3)) {
         this->mass = 10.0f;
         this->damping = 0.0f;
         this->stiffness = 40.0f;
@@ -316,18 +316,21 @@ void MassSpringSystemSimulator::initScene()
     case 0:
     {
         this->setIntegrator(EULER);
+        this->enable_collision = false;
         *timestep = 0.1f;
         break;
     }
     case 1:
     {
         this->setIntegrator(EULER);
+        this->enable_collision = false;
         *timestep = 0.005f;
         break;
     }
     case 2:
     {
         this->setIntegrator(MIDPOINT);
+        this->enable_collision = false;
         *timestep = 0.005f;
         break;
     }
@@ -336,6 +339,7 @@ void MassSpringSystemSimulator::initScene()
     case 4:
     {
         this->setIntegrator(LEAPFROG);
+        this->enable_collision = true;
         // # of cloths to be presented in our demo
         *timestep = 0.005f;
         // Initialize the grid
@@ -384,7 +388,8 @@ void MassSpringSystemSimulator::initScene()
     }
         break;
     case 5:
-        cout << "Demo 5 !\n";
+        this->enable_collision = false;
+        this->setIntegrator(LEAPFROG);
         break;
     default:
         break;
@@ -475,10 +480,6 @@ void MassSpringSystemSimulator::externalForcesCalculations(float timeElapsed)
     }
 }
 
-MassSpringSystemSimulator::~MassSpringSystemSimulator() {
-    if(srv) srv->Release();
-    if(uav) uav->Release();
-}
 
 void MassSpringSystemSimulator::compute_elastic_force(const Spring& s) {
     auto& mp1 = mass_points[s.mp1];
@@ -615,8 +616,9 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         compute_elastic_force(spring);
     }
     
-    // Side effect
-    compute_collision();
+    if(enable_collision) {
+        compute_collision();
+    }
 
     switch(integrator) {
         case EULER:
@@ -755,3 +757,9 @@ void MassSpringSystemSimulator::passTimestepVariable(float& time_step)
 {
     timestep = &time_step;
 }
+
+MassSpringSystemSimulator::~MassSpringSystemSimulator() {
+    if(srv) srv->Release();
+    if(uav) uav->Release();
+}
+

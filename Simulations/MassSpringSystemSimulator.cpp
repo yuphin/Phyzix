@@ -569,7 +569,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     uint32_t iters = 1;
 
     if (m_iTestCase == 3 || m_iTestCase == 4) {
-        iters = integrator == MIDPOINT ? 64 : 1;
+        iters = integrator == MIDPOINT ? 64 : 2;
     }
 
     float delta = time_step / float(iters);

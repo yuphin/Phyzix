@@ -565,10 +565,18 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     if (!running) {
         return;
     }
+
+    uint32_t iters = 1;
+
+    if (m_iTestCase == 3 || m_iTestCase == 4) {
+        iters = integrator == MIDPOINT ? 64 : 1;
+    }
+
+    float delta = time_step / float(iters);
+
     if(m_iTestCase == 3) {
         auto context = DUC->g_pd3dImmediateContext;
-        const uint32_t iters = integrator == MIDPOINT ? 64 : 128;
-        simulation_cb.delta = time_step / float(iters);
+        simulation_cb.delta = delta;
         simulation_cb.sphere_radius = sphere_rad;
         simulation_cb.cube_radius = cube_rad;
         simulation_cb.mass = mass;
@@ -665,45 +673,46 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         return;
     }
 
-    // Clear forces + add external forces 
-    // Compute elastic forces
-    // Apply integrator
+    for (auto i = 0; i < iters; i++) {
+        // Clear forces + add external forces 
+        // Compute elastic forces
+        // Apply integrator
 
-    for(auto& mp : mass_points) {
-        mp.force = this->external_force + mouse_force;
-    }
+        for (auto& mp : mass_points) {
+            mp.force = this->external_force + mouse_force;
+        }
 
-    for(const auto& spring : springs) {
-        compute_elastic_force(spring);
-    }
+        for (const auto& spring : springs) {
+            compute_elastic_force(spring);
+        }
 
-    //damping
-    for (auto& mp : mass_points) {
-        mp.force += -damping * mp.velocity;
-    }
-    
-    
+        //damping
+        for (auto& mp : mass_points) {
+            mp.force += -damping * mp.velocity;
+        }
 
-    switch(integrator) {
+
+
+        switch (integrator) {
         case EULER:
         {
-            for(auto& mp : mass_points) {
+            for (auto& mp : mass_points) {
                 Vec3 accel = mp.force / mass;
                 if (!mp.is_fixed) {
-                    mp.position = mp.position + time_step * mp.velocity;
+                    mp.position = mp.position + delta * mp.velocity;
                 }
-                mp.velocity = mp.velocity + time_step * accel;
+                mp.velocity = mp.velocity + delta * accel;
             }
             break;
         }
         case LEAPFROG:
         {
-            for(auto& mp : mass_points) {
+            for (auto& mp : mass_points) {
                 Vec3 accel = mp.force / mass;
                 // Not tested
-                mp.velocity = mp.velocity + time_step * accel;
+                mp.velocity = mp.velocity + delta * accel;
                 if (!mp.is_fixed) {
-                    mp.position = mp.position + time_step * mp.velocity;
+                    mp.position = mp.position + delta * mp.velocity;
                 }
             }
             break;
@@ -720,9 +729,9 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
                 old_velocities.push_back(mp.velocity);
 
                 if (!mp.is_fixed) {
-                    mp.position = mp.position + time_step / 2.0f * mp.velocity;
+                    mp.position = mp.position + delta / 2.0f * mp.velocity;
                 }
-                mp.velocity = mp.velocity + time_step / 2.0f * accel;
+                mp.velocity = mp.velocity + delta / 2.0f * accel;
             }
 
             for (auto& mp : mass_points) {
@@ -741,18 +750,19 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
                 Vec3 accel = mass_points[i].force / mass;
 
                 if (!mass_points[i].is_fixed) {
-                    mass_points[i].position = old_positions[i] + time_step * mass_points[i].velocity;
+                    mass_points[i].position = old_positions[i] + delta * mass_points[i].velocity;
                 }
-                mass_points[i].velocity = old_velocities[i] + time_step * accel;
+                mass_points[i].velocity = old_velocities[i] + delta * accel;
             }
             break;
         }
         default:
             break;
-    }
+        }
 
-    if (enable_collision) {
-        compute_collision();
+        if (enable_collision) {
+            compute_collision();
+        }
     }
 
     if (m_iTestCase == 0) {

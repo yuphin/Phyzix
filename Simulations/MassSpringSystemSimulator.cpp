@@ -294,7 +294,8 @@ void MassSpringSystemSimulator::fill_resources() {
             if(!buffer_in) {
                 create_structured_buffer(device, sizeof(MassPointVertex), mass_points.size(),
                                          vertices.data(), buffer_in.GetAddressOf());
-                create_srv(device, buffer_in.Get(), &srv);
+                create_srv(device, buffer_in.Get(), &srv_in);
+                create_uav(device, buffer_in.Get(), &uav_in);
 
             } else {
                 auto context = DUC->g_pd3dImmediateContext;
@@ -304,7 +305,8 @@ void MassSpringSystemSimulator::fill_resources() {
             if(!buffer_out) {
                 create_structured_buffer(device, sizeof(MassPointVertex), mass_points.size(), 0,
                                          buffer_out.GetAddressOf());
-                create_uav(device, buffer_out.Get(), &uav);
+                create_uav(device, buffer_out.Get(), &uav_out);
+                create_srv(device, buffer_out.Get(), &srv_out);
             }
         }
     }
@@ -591,7 +593,12 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         DirectX::XMStoreFloat3(&simulation_cb.sphere_pos, spd);
         DirectX::XMStoreUInt2(&simulation_cb.grid_dim, grid_dim);
         DirectX::XMStoreFloat3(&simulation_cb.external_force, ef);
-
+        ID3D11ShaderResourceView* srvs[2] = { srv_in, srv_out };
+        ID3D11UnorderedAccessView* uavs[2] = { uav_out, uav_in };
+        ID3D11ShaderResourceView* null_srv[1] = {nullptr};
+        ID3D11UnorderedAccessView* null_uav[1] = {nullptr};
+        bool srv_idx = 1;
+        bool uav_idx = 1;
         context->UpdateSubresource(
             simulation_buffer.Get(),
             0,
@@ -602,17 +609,22 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         );
             
         context->CSSetShader(compute_shader.Get(), nullptr, 0);
-        context->CSSetShaderResources(0, 1, &srv);
-        context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
+      /*  context->CSSetShaderResources(0, 1, &srvs[srv_idx]);
+        context->CSSetUnorderedAccessViews(0, 1, &uavs[uav_idx], nullptr);*/
         context->CSSetConstantBuffers(
             0,
             1,
             simulation_buffer.GetAddressOf()
         );
         for(auto i = 0; i < iters; i++) {
+            srv_idx = !srv_idx;
+            uav_idx = !uav_idx;
             if(integrator == MIDPOINT) {
+                context->CSSetShaderResources(0, 1, &srvs[srv_idx]);
+                context->CSSetUnorderedAccessViews(0, 1, &uavs[uav_idx], nullptr);
                 context->Dispatch(GRIDX / NUM_THREADS_X , GRIDY / NUM_THREADS_Y, 1);
-                context->CopyResource(buffer_in.Get(), buffer_out.Get());
+                context->CSSetShaderResources(0, 1, null_srv);
+                context->CSSetUnorderedAccessViews(0, 1, null_uav, nullptr);
                 simulation_cb.integrator = 3;
                 context->UpdateSubresource(
                     simulation_buffer.Get(),
@@ -622,13 +634,19 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
                     0,
                     0
                 );
+                srv_idx = !srv_idx;
+                uav_idx = !uav_idx;
+                context->CSSetShaderResources(0, 1, &srvs[srv_idx]);
+                context->CSSetUnorderedAccessViews(0, 1, &uavs[uav_idx], nullptr);
                 context->Dispatch(GRIDX / NUM_THREADS_X, GRIDY / NUM_THREADS_Y, 1);
-                context->CopyResource(buffer_in.Get(), buffer_out.Get());
-              
+                context->CSSetShaderResources(0, 1, null_srv);
+                context->CSSetUnorderedAccessViews(0, 1, null_uav, nullptr);
             } else {
+;               context->CSSetShaderResources(0, 1, &srvs[srv_idx]);
+                context->CSSetUnorderedAccessViews(0, 1, &uavs[uav_idx], nullptr);
                 context->Dispatch(GRIDX / NUM_THREADS_X , GRIDY / NUM_THREADS_Y, 1);
-                context->CopyResource(buffer_in.Get(), buffer_out.Get());
-
+                context->CSSetShaderResources(0, 1, null_srv);
+                context->CSSetUnorderedAccessViews(0, 1, null_uav, nullptr);
             }
         }
         context->CopyResource(vertex_buffer.Get(), buffer_in.Get());
@@ -817,8 +835,10 @@ void MassSpringSystemSimulator::passTimestepVariable(float& time_step)
 }
 
 MassSpringSystemSimulator::~MassSpringSystemSimulator() {
-    if(srv) srv->Release();
-    if(uav) uav->Release();
+    if(srv_in) srv_in->Release();
+    if(uav_out) uav_out->Release();
+    if(srv_out) srv_out->Release();
+    if(uav_in) uav_in->Release();
     if(texture_view) texture_view->Release();
     if(sampler_state) sampler_state->Release();
 }

@@ -174,8 +174,10 @@ private:
 	ComPtr<ID3D11Buffer> buffer_out;
 	ID3D11ShaderResourceView* texture_view;
 	ID3D11SamplerState* sampler_state;
-	ID3D11ShaderResourceView* srv = nullptr;
-	ID3D11UnorderedAccessView* uav = nullptr;
+	ID3D11ShaderResourceView* srv_in = nullptr;
+	ID3D11ShaderResourceView* srv_out = nullptr;
+	ID3D11UnorderedAccessView* uav_in = nullptr;
+	ID3D11UnorderedAccessView* uav_out = nullptr;
 	ClothCB cloth_cb;
 	StateCB simulation_cb;
 };

@@ -362,6 +362,7 @@ void MassSpringSystemSimulator::initScene()
         Vec3 initial_velocity(0, -0.05, 0);
         Vec3 initial_force(0, 0, 0);
         float spring_length = 1.0f / GRIDX; // Assume uniform grid for now
+        float cross_len = sqrt(spring_length * spring_length * 2);
         this->applyExternalForce(Vec3(0, -10, 0));
         int GRIDSIZE = GRIDX * GRIDY;
         float dx = 1.0f / GRIDX;
@@ -390,6 +391,7 @@ void MassSpringSystemSimulator::initScene()
                      !i && !k ? true : false,
                      {du * i, dv * j, 0}
                     };
+                    auto left = j > 0 ? k * GRIDX * GRIDY + i * GRIDX + j - 1 : curr_idx;
                     auto right = j < GRIDX - 1 ? k * GRIDX * GRIDY +  i * GRIDX + j + 1 : curr_idx;
                     auto bottom = i < GRIDY - 1 ? k * GRIDX * GRIDY + (i + 1) * GRIDX + j : curr_idx;
                     if(curr_idx != right) {
@@ -397,6 +399,12 @@ void MassSpringSystemSimulator::initScene()
                     }
                     if(curr_idx != bottom) {
                         springs.push_back({ curr_idx,  bottom, spring_length });
+                    }
+                    if (curr_idx != left && curr_idx != bottom) {
+                        springs.push_back({ curr_idx, k * GRIDX * GRIDY + (i + 1) * GRIDX + j - 1, cross_len });
+                    }
+                    if (curr_idx != right && curr_idx != bottom) {
+                        springs.push_back({ curr_idx, k * GRIDX * GRIDY + (i + 1) * GRIDX + j + 1, cross_len });
                     }
                 }
             }

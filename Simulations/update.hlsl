@@ -19,7 +19,8 @@ struct MassPoint {
     float3 pos;
     float2 uv;
     float3 vel;
-    float3 f;
+    float3 tmp_pos;
+    float3 tmp_vel;
     uint is_fixed;
 };
 
@@ -83,10 +84,10 @@ float3 calculate_force(uint3 id, uint idx, float3 curr_pos, float3 curr_vel) {
 }
 
 // We could communicate this info with CPU
-[numthreads(20,20,1)]
+[numthreads(1,1,1)]
 void CS(uint3 id : SV_DispatchThreadID) {
     const float dn = 0.001;
-    const float sphere_dn = 0.005;
+    const float sphere_dn = 0.001;
     for(uint k = 0; k < num_cloths; k++) {
         uint idx = k * grid_dim.x * grid_dim.y + id.y * grid_dim.x + id.x;
         if(idx > num_cloths * grid_dim.x * grid_dim.y) {
@@ -99,7 +100,7 @@ void CS(uint3 id : SV_DispatchThreadID) {
         float3 force = calculate_force(id, idx, curr_pos, curr_vel);
         // Integrate 
         float3 accel = force * (1.0 / mass);
-
+      
         if (buf_in[idx].is_fixed == 0) {
             if (integrator == 0) {
                 buf_out[idx].pos = curr_pos + delta * curr_vel;
@@ -109,16 +110,15 @@ void CS(uint3 id : SV_DispatchThreadID) {
                 buf_out[idx].vel = curr_vel + delta * accel;
                 buf_out[idx].pos = curr_pos + delta * buf_out[idx].vel;
             }
-            else {
-                buf_out[idx].pos = curr_pos + delta / 2.0 * curr_vel;
-                buf_out[idx].vel = curr_vel + delta / 2.0 * accel;
-
-                force = calculate_force(id, idx, buf_out[idx].pos, buf_out[idx].vel);
-                accel = force * (1.0 / mass);
-
-                // curr_pos and curr_vel are actually old pos and vel in this context
-                buf_out[idx].pos = curr_pos + delta * buf_out[idx].vel;
-                buf_out[idx].vel = curr_vel + delta * accel;
+            else if(integrator == 2){
+                
+                buf_out[idx].pos = curr_pos + 0.5 * delta * curr_vel;
+                float3 vel_next = curr_vel + 0.5 * delta * accel;
+                buf_out[idx].vel = vel_next;
+            } else if(integrator == 3) {
+                // Midpoint step 2
+                buf_out[idx].pos = buf_in[idx].tmp_pos + delta * curr_vel;
+                buf_out[idx].vel = buf_in[idx].tmp_vel + delta * accel;
             }
         }
         else {
@@ -126,38 +126,40 @@ void CS(uint3 id : SV_DispatchThreadID) {
             buf_out[idx].pos = curr_pos;
         }
 
-        // Sphere collision
-        float3 dist_sphere = curr_pos - sphere_pos;
-        if(length(dist_sphere) < sphere_radius + sphere_dn) {
-            buf_out[idx].pos = sphere_pos + normalize(dist_sphere) * (sphere_radius + sphere_dn);
-            buf_out[idx].vel = float3(0, 0, 0);
+        if(integrator != 2) {
+            // Sphere collision
+            float3 dist_sphere = curr_pos - sphere_pos;
+            if(length(dist_sphere) < sphere_radius + sphere_dn) {
+                buf_out[idx].pos = sphere_pos + normalize(dist_sphere) * (sphere_radius + sphere_dn);
+                buf_out[idx].vel = float3(0, 0, 0);
+            }
+            // Cube collision
+            float3 dist_cube = curr_pos - cube_pos;
+            float cube_boundary = cube_radius + 20 * dn;
+            float3 clamped = clamp(dist_cube, -cube_boundary, cube_boundary);
+            float3 axis = float3(0.0, 0.0, 0.0);
+            if(abs(clamped.x) > cube_radius) {
+                axis = axis + float3(sign(clamped.x) * 1.0, 0, 0);
+            }
+            if(abs(clamped.y) > cube_radius) {
+                axis = axis + float3(0, sign(clamped.y) * 1.0, 0);
+            }
+            if(abs(clamped.z) > cube_radius) {
+                axis = axis + float3(0, 0, sign(clamped.z) * 1.0);
+            }
+            if(length(dist_cube - clamped) < dn) {
+                buf_out[idx].pos = curr_pos + axis * dn;
+                buf_out[idx].vel = float3(0, 0, 0);
+            }
+            // Floor collision
+            if(curr_pos.y < -1.0) {
+                buf_out[idx].pos.y = -1.0 + dn;
+                buf_out[idx].vel = float3(0, 0, 0);
+            }
         }
-        // Cube collision
-        float3 dist_cube = curr_pos - cube_pos ;
-        float cube_boundary = cube_radius + 20*dn;
-        float3 clamped = clamp(dist_cube, -cube_boundary, cube_boundary);
-        float3 axis = float3(0.0, 0.0, 0.0);
-        if(abs(clamped.x) > cube_radius) {
-            axis = axis + float3(sign(clamped.x) * 1.0, 0, 0);
-        }
-        if(abs(clamped.y) > cube_radius) {
-            axis = axis + float3(0, sign(clamped.y) * 1.0, 0);
-        }
-        if(abs(clamped.z) > cube_radius) {
-            axis = axis + float3(0, 0, sign(clamped.z) * 1.0);
-        }
-        if(length(dist_cube - clamped) < dn){
-            buf_out[idx].pos = curr_pos + axis * dn;
-            buf_out[idx].vel = float3(0, 0, 0);
-        }
-        // Floor collision
-        if(curr_pos.y < -1.0) {
-            buf_out[idx].pos.y = -1.0 + dn;
-            buf_out[idx].vel = float3(0, 0, 0);
-        }
-
         buf_out[idx].is_fixed = buf_in[idx].is_fixed;
         buf_out[idx].uv = buf_in[idx].uv;
+        buf_out[idx].tmp_pos = curr_pos;
+        buf_out[idx].tmp_vel = curr_vel;
     }
-  
 }

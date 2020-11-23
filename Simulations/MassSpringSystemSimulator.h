@@ -30,7 +30,8 @@ struct MassPointVertex {
 	DirectX::XMFLOAT3 pos;
 	DirectX::XMFLOAT2 uv;
 	DirectX::XMFLOAT3 vel;
-	DirectX::XMFLOAT3 f;
+	DirectX::XMFLOAT3 tmp_pos;
+	DirectX::XMFLOAT3 f2;
 	uint32_t is_fixed;
 };
 
@@ -128,8 +129,8 @@ private:
 	// Maybe we can change these through UI?
 	int GRIDX = 20;
 	int GRIDY = 20;
-	const int NUM_THREADS_X = 20;
-	const int NUM_THREADS_Y = 20;
+	const int NUM_THREADS_X = 1;
+	const int NUM_THREADS_Y = 1;
 	const int  NUM_CLOTHS = 3;
 	// UI Attributes
 	Vec3 external_force;

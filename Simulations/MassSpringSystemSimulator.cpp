@@ -435,11 +435,9 @@ void MassSpringSystemSimulator::update_vertex_extended() {
     for(int i = 0; i < mass_points.size(); i++) {
         DirectX::XMVECTOR pos = mass_points[i].position.toDirectXVector();
         DirectX::XMVECTOR vel = mass_points[i].velocity.toDirectXVector();
-        DirectX::XMVECTOR f = mass_points[i].force.toDirectXVector();
         DirectX::XMVECTOR uv = mass_points[i].uv.toDirectXVector();
         XMStoreFloat3(&vertices[i].pos, pos);
         XMStoreFloat3(&vertices[i].vel, vel);
-        XMStoreFloat3(&vertices[i].f, f);
         XMStoreFloat2(&vertices[i].uv, uv);
         vertices[i].is_fixed = static_cast<uint32_t>(mass_points[i].is_fixed);
         // TODO?
@@ -559,7 +557,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     }
     if(m_iTestCase == 3) {
         auto context = DUC->g_pd3dImmediateContext;
-        const uint32_t iters = 128;
+        const uint32_t iters = integrator == MIDPOINT ? 64 : 128;
         simulation_cb.delta = time_step / float(iters);
         simulation_cb.sphere_radius = sphere_rad;
         simulation_cb.cube_radius = cube_rad;
@@ -596,10 +594,28 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
             simulation_buffer.GetAddressOf()
         );
         for(auto i = 0; i < iters; i++) {
-            context->Dispatch(GRIDX / NUM_THREADS_X , GRIDY / NUM_THREADS_Y, 1);
-            context->CopyResource(buffer_in.Get(), buffer_out.Get());
+            if(integrator == MIDPOINT) {
+                context->Dispatch(GRIDX / NUM_THREADS_X , GRIDY / NUM_THREADS_Y, 1);
+                context->CopyResource(buffer_in.Get(), buffer_out.Get());
+                simulation_cb.integrator = 3;
+                context->UpdateSubresource(
+                    simulation_buffer.Get(),
+                    0,
+                    nullptr,
+                    &simulation_cb,
+                    0,
+                    0
+                );
+                context->Dispatch(GRIDX / NUM_THREADS_X, GRIDY / NUM_THREADS_Y, 1);
+                context->CopyResource(buffer_in.Get(), buffer_out.Get());
+              
+            } else {
+                context->Dispatch(GRIDX / NUM_THREADS_X , GRIDY / NUM_THREADS_Y, 1);
+                context->CopyResource(buffer_in.Get(), buffer_out.Get());
+
+            }
         }
-        context->CopyResource(vertex_buffer.Get(), buffer_out.Get());
+        context->CopyResource(vertex_buffer.Get(), buffer_in.Get());
         // For debugging CS:
         /*{
             ID3D11Buffer* debugbuf = CreateAndCopyToDebugBuf(DUC->g_ppd3Device, 

@@ -566,6 +566,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         simulation_cb.stiffness = stiffness;
         simulation_cb.damping = damping;
         simulation_cb.initial_len = 1.0f / GRIDX;
+        simulation_cb.cross_len = sqrt(simulation_cb.initial_len * simulation_cb.initial_len * 2);
         simulation_cb.num_cloths = NUM_CLOTHS;
         simulation_cb.integrator = integrator;
         auto spd = sphere_pos.toDirectXVector();

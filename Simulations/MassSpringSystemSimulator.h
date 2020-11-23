@@ -55,6 +55,7 @@ struct StateCB {
 	float cube_radius;
 	DirectX::XMFLOAT3 cube_pos;
 	uint32_t integrator;
+	float cross_len;
 };
 
 class MassSpringSystemSimulator:public Simulator{

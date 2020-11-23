@@ -12,6 +12,7 @@ cbuffer StateCB : register(b0) {
     float cube_radius;
     float3 cube_pos;
     uint integrator;
+    float cross_len;
 };
 
 struct MassPoint {
@@ -25,32 +26,54 @@ struct MassPoint {
 StructuredBuffer<MassPoint> buf_in;
 RWStructuredBuffer<MassPoint> buf_out;
 
-float3 compute_elastic_force(float3 mp1, float3 mp2) {
+float3 compute_elastic_force(float3 mp1, float3 mp2, bool cross) {
     float3 spring_vec = mp1 - mp2;
-    return stiffness * (length(spring_vec) - initial_len) * normalize(spring_vec);
+    return stiffness * (length(spring_vec) - (cross ? cross_len : 0.05)) * normalize(spring_vec);
 }
 
 float3 calculate_force(uint3 id, uint idx, float3 curr_pos, float3 curr_vel) {
     float3 force = external_force;
     // Instead of springs, we traverse in grid. I.e look for neighbors
 
+    bool left = false, right = false, up = false, down = false;
+
     // Left
     if (id.x > 0) {
-        force += compute_elastic_force(buf_in[idx - 1].pos, curr_pos);
+        force += compute_elastic_force(buf_in[idx - 1].pos, curr_pos, false);
+        left = true;
     }
     // Right
     if (id.x < grid_dim.x - 1) {
-        force += compute_elastic_force(buf_in[idx + 1].pos, curr_pos);
+        force += compute_elastic_force(buf_in[idx + 1].pos, curr_pos, false);
+        right = true;
     }
 
     // Up
     if (id.y < grid_dim.y - 1) {
-        force += compute_elastic_force(buf_in[idx + grid_dim.x].pos, curr_pos);
+        force += compute_elastic_force(buf_in[idx + grid_dim.x].pos, curr_pos, false);
+        up = true;
     }
 
     // Down
     if (id.y > 0) {
-        force += compute_elastic_force(buf_in[idx - grid_dim.x].pos, curr_pos);
+        force += compute_elastic_force(buf_in[idx - grid_dim.x].pos, curr_pos, false);
+        down = true;
+    }
+
+    if (right && up) {
+        force += compute_elastic_force(buf_in[idx + 1 + grid_dim.x].pos, curr_pos, true);
+    }
+
+    if (right && down) {
+        force += compute_elastic_force(buf_in[idx + 1 - grid_dim.x].pos, curr_pos, true);
+    }
+
+    if (left && up) {
+        force += compute_elastic_force(buf_in[idx - 1 + grid_dim.x].pos, curr_pos, true);
+    }
+
+    if (left && down) {
+        force += compute_elastic_force(buf_in[idx - 1 - grid_dim.x].pos, curr_pos, true);
     }
 
     // Damping

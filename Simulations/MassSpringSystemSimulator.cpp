@@ -509,8 +509,8 @@ void MassSpringSystemSimulator::compute_elastic_force(const Spring& s) {
     float x = norm(spring_vec) - s.initial_length;
     normalize(spring_vec);
     Vec3 f = -stiffness * x * spring_vec;
-    mp1.force += f - damping * mp1.velocity;
-    mp2.force += -f  - damping * mp2.velocity;
+    mp1.force += f;
+    mp2.force += -f;
 }
 
 void MassSpringSystemSimulator::compute_collision() {
@@ -545,8 +545,8 @@ void MassSpringSystemSimulator::compute_collision() {
             mp.colliding = true;
         }
         // Floor collision
-        if(mp.position < -1.0f) {
-            mp.position = -1.0f + dn;
+        if(mp.position.y < -1.0f) {
+            mp.position.y = -1.0f + dn;
             mp.velocity = 0;
             mp.colliding = true;
         }
@@ -626,8 +626,14 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     for(auto& mp : mass_points) {
         mp.force = this->external_force + mouse_force;
     }
+
     for(const auto& spring : springs) {
         compute_elastic_force(spring);
+    }
+
+    //damping
+    for (auto& mp : mass_points) {
+        mp.force += -damping * mp.velocity;
     }
     
     if(enable_collision) {

@@ -87,7 +87,7 @@ float3 calculate_force(uint3 id, uint idx, float3 curr_pos, float3 curr_vel) {
 [numthreads(20,20,1)]
 void CS(uint3 id : SV_DispatchThreadID) {
     const float dn = 0.001;
-    const float sphere_dn = 0.001;
+    const float sphere_dn = 0.005;
 
     for(uint k = 0; k < num_cloths; k++) {
         uint idx = k * grid_dim.x * grid_dim.y + id.y * grid_dim.x + id.x;

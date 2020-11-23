@@ -28,7 +28,7 @@ RWStructuredBuffer<MassPoint> buf_out;
 
 float3 compute_elastic_force(float3 mp1, float3 mp2, bool cross) {
     float3 spring_vec = mp1 - mp2;
-    return stiffness * (length(spring_vec) - (cross ? cross_len : 0.05)) * normalize(spring_vec);
+    return stiffness * (length(spring_vec) - (cross ? cross_len : initial_len)) * normalize(spring_vec);
 }
 
 float3 calculate_force(uint3 id, uint idx, float3 curr_pos, float3 curr_vel) {

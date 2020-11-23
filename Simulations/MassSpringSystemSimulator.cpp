@@ -559,7 +559,8 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     }
     if(m_iTestCase == 3) {
         auto context = DUC->g_pd3dImmediateContext;
-        simulation_cb.delta = time_step;
+        const uint32_t iters = 128;
+        simulation_cb.delta = time_step / float(iters);
         simulation_cb.sphere_radius = sphere_rad;
         simulation_cb.cube_radius = cube_rad;
         simulation_cb.mass = mass;
@@ -594,9 +595,10 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
             1,
             simulation_buffer.GetAddressOf()
         );
-
-        context->Dispatch(GRIDX / NUM_THREADS_X , GRIDY / NUM_THREADS_Y, 1);
-        context->CopyResource(buffer_in.Get(), buffer_out.Get());
+        for(auto i = 0; i < iters; i++) {
+            context->Dispatch(GRIDX / NUM_THREADS_X , GRIDY / NUM_THREADS_Y, 1);
+            context->CopyResource(buffer_in.Get(), buffer_out.Get());
+        }
         context->CopyResource(vertex_buffer.Get(), buffer_out.Get());
         // For debugging CS:
         /*{

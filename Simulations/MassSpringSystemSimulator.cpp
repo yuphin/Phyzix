@@ -567,6 +567,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         simulation_cb.damping = damping;
         simulation_cb.initial_len = 1.0f / GRIDX;
         simulation_cb.num_cloths = NUM_CLOTHS;
+        simulation_cb.integrator = integrator;
         auto spd = sphere_pos.toDirectXVector();
         auto grid_dim = DirectX::XMVectorSet(GRIDX, GRIDY, 0, 0);
         auto ef = (external_force + mouse_force).toDirectXVector();
@@ -636,16 +637,14 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         mp.force += -damping * mp.velocity;
     }
     
-    if(enable_collision) {
-        compute_collision();
-    }
+    
 
     switch(integrator) {
         case EULER:
         {
             for(auto& mp : mass_points) {
                 Vec3 accel = mp.force / mass;
-                if (!mp.is_fixed && !mp.colliding) {
+                if (!mp.is_fixed) {
                     mp.position = mp.position + time_step * mp.velocity;
                 }
                 mp.velocity = mp.velocity + time_step * accel;
@@ -689,6 +688,10 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
                 compute_elastic_force(spring);
             }
 
+            for (auto& mp : mass_points) {
+                mp.force += -damping * mp.velocity;
+            }
+
             for (int i = 0; i < mass_points.size(); i++) {
                 Vec3 accel = mass_points[i].force / mass;
 
@@ -703,6 +706,10 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
             break;
     }
 
+    if (enable_collision) {
+        compute_collision();
+    }
+
     if (m_iTestCase == 0) {
         int index = 0;
         for (int i = 0; i < mass_points.size(); i++) {
@@ -712,12 +719,6 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
         }
         running = false;
     }
-
-    /*for (auto& mp : mass_points) {
-        mp.position.x = clamp(mp.position.x, -2, 2);
-        mp.position.y = clamp(mp.position.y, -0.999, 2);
-        mp.position.z = clamp(mp.position.z, -2, 2);
-    }*/
 }
 
 void MassSpringSystemSimulator::onClick(int x, int y) {

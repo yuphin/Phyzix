@@ -54,7 +54,7 @@ struct StateCB {
 	DirectX::XMFLOAT3 external_force;
 	float cube_radius;
 	DirectX::XMFLOAT3 cube_pos;
-	DirectX::XMFLOAT3 mouse_force;
+	uint32_t integrator;
 };
 
 class MassSpringSystemSimulator:public Simulator{

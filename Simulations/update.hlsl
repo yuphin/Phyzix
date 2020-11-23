@@ -11,6 +11,7 @@ cbuffer StateCB : register(b0) {
     float3 external_force;
     float cube_radius;
     float3 cube_pos;
+    uint integrator;
 };
 
 struct MassPoint {
@@ -29,6 +30,35 @@ float3 compute_elastic_force(float3 mp1, float3 mp2) {
     return stiffness * (length(spring_vec) - initial_len) * normalize(spring_vec);
 }
 
+float3 calculate_force(uint3 id, uint idx, float3 curr_pos, float3 curr_vel) {
+    float3 force = external_force;
+    // Instead of springs, we traverse in grid. I.e look for neighbors
+
+    // Left
+    if (id.x > 0) {
+        force += compute_elastic_force(buf_in[idx - 1].pos, curr_pos);
+    }
+    // Right
+    if (id.x < grid_dim.x - 1) {
+        force += compute_elastic_force(buf_in[idx + 1].pos, curr_pos);
+    }
+
+    // Up
+    if (id.y < grid_dim.y - 1) {
+        force += compute_elastic_force(buf_in[idx + grid_dim.x].pos, curr_pos);
+    }
+
+    // Down
+    if (id.y > 0) {
+        force += compute_elastic_force(buf_in[idx - grid_dim.x].pos, curr_pos);
+    }
+
+    // Damping
+    force += -damping * curr_vel;
+
+    return force;
+}
+
 // We could communicate this info with CPU
 [numthreads(20,20,1)]
 void CS(uint3 id : SV_DispatchThreadID) {
@@ -38,43 +68,40 @@ void CS(uint3 id : SV_DispatchThreadID) {
         if(idx > num_cloths * grid_dim.x * grid_dim.y) {
             return;
         }
-        float3 force = external_force;
-        // Instead of springs, we traverse in grid. I.e look for neighbors
 
         float3 curr_pos = buf_in[idx].pos;
         float3 curr_vel = buf_in[idx].vel;
-        // Left
-        if(id.x > 0) {
-            force += compute_elastic_force(buf_in[idx - 1].pos, curr_pos);
-        }
-        // Right
-        if(id.x < grid_dim.x - 1) {
-            force += compute_elastic_force(buf_in[idx + 1].pos, curr_pos);
-        }
 
-        // Up
-        if(id.y < grid_dim.y - 1) {
-            force += compute_elastic_force(buf_in[idx + grid_dim.x].pos, curr_pos);
-        }
-
-        // Down
-        if(id.y > 0) {
-            force += compute_elastic_force(buf_in[idx - grid_dim.x].pos, curr_pos);
-        }
-
-        // Damping
-        force += -damping * curr_vel;
-
+        float3 force = calculate_force(id, idx, curr_pos, curr_vel);
         // Integrate 
         float3 accel = force * (1.0 / mass);
 
-        if(buf_in[idx].is_fixed == 0) {
-            buf_out[idx].vel = curr_vel + delta * accel;
-            buf_out[idx].pos = curr_pos + delta * buf_out[idx].vel;
-        } else {
+        if (buf_in[idx].is_fixed == 0) {
+            if (integrator == 0) {
+                buf_out[idx].pos = curr_pos + delta * curr_vel;
+                buf_out[idx].vel = curr_vel + delta * accel;
+            }
+            else if (integrator == 1) {
+                buf_out[idx].vel = curr_vel + delta * accel;
+                buf_out[idx].pos = curr_pos + delta * buf_out[idx].vel;
+            }
+            else {
+                buf_out[idx].pos = curr_pos + delta / 2.0 * curr_vel;
+                buf_out[idx].vel = curr_vel + delta / 2.0 * accel;
+
+                force = calculate_force(id, idx, buf_out[idx].pos, buf_out[idx].vel);
+                accel = force * (1.0 / mass);
+
+                // curr_pos and curr_vel are actually old pos and vel in this context
+                buf_out[idx].pos = curr_pos + delta * buf_out[idx].vel;
+                buf_out[idx].vel = curr_vel + delta * accel;
+            }
+        }
+        else {
             buf_out[idx].vel = curr_vel;
             buf_out[idx].pos = curr_pos;
         }
+
         // Sphere collision
         float3 dist_sphere = curr_pos - sphere_pos;
         if(length(dist_sphere) < sphere_radius + dn) {

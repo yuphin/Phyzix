@@ -681,7 +681,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
             }
 
             for (auto& mp : mass_points) {
-                mp.force = this->external_force;
+                mp.force = this->external_force + mouse_force;
             }
 
             for (const auto& spring : springs) {

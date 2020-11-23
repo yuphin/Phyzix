@@ -63,6 +63,7 @@ float3 calculate_force(uint3 id, uint idx, float3 curr_pos, float3 curr_vel) {
 [numthreads(20,20,1)]
 void CS(uint3 id : SV_DispatchThreadID) {
     const float dn = 0.001;
+    const float sphere_dn = 0.005;
     for(uint k = 0; k < num_cloths; k++) {
         uint idx = k * grid_dim.x * grid_dim.y + id.y * grid_dim.x + id.x;
         if(idx > num_cloths * grid_dim.x * grid_dim.y) {
@@ -104,8 +105,8 @@ void CS(uint3 id : SV_DispatchThreadID) {
 
         // Sphere collision
         float3 dist_sphere = curr_pos - sphere_pos;
-        if(length(dist_sphere) < sphere_radius + dn) {
-            buf_out[idx].pos = sphere_pos + normalize(dist_sphere) * (sphere_radius + dn);
+        if(length(dist_sphere) < sphere_radius + sphere_dn) {
+            buf_out[idx].pos = sphere_pos + normalize(dist_sphere) * (sphere_radius + sphere_dn);
             buf_out[idx].vel = float3(0, 0, 0);
         }
         // Cube collision
@@ -131,10 +132,6 @@ void CS(uint3 id : SV_DispatchThreadID) {
             buf_out[idx].pos.y = -1.0 + dn;
             buf_out[idx].vel = float3(0, 0, 0);
         }
-        //curr_pos = buf_out[idx].pos;
-        //buf_out[idx].pos.x = clamp(curr_pos.x, -2, 2);
-        // buf_out[idx].pos.y = clamp(curr_pos.y, -0.999, 2);
-        //buf_out[idx].pos.z = clamp(curr_pos.z, -2, 2);
 
         buf_out[idx].is_fixed = buf_in[idx].is_fixed;
         buf_out[idx].uv = buf_in[idx].uv;

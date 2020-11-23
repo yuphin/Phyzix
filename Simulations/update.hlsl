@@ -84,7 +84,7 @@ float3 calculate_force(uint3 id, uint idx, float3 curr_pos, float3 curr_vel) {
 }
 
 // We could communicate this info with CPU
-[numthreads(1,1,1)]
+[numthreads(20,20,1)]
 void CS(uint3 id : SV_DispatchThreadID) {
     const float dn = 0.001;
     const float sphere_dn = 0.001;

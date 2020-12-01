@@ -127,8 +127,8 @@ private:
 	int integrator;
 
 	// Maybe we can change these through UI?
-	int GRIDX = 20;
-	int GRIDY = 20;
+	int GRIDX = 40;
+	int GRIDY = 40;
 	const int NUM_THREADS_X = 20;
 	const int NUM_THREADS_Y = 20;
 	const int  NUM_CLOTHS = 3;

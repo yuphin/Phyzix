@@ -179,18 +179,18 @@ void MassSpringSystemSimulator::init_resources(ID3D11Device* device) {
     HRESULT hr = S_OK;
     // Create shaders
     ID3DBlob* vs_blob = nullptr;
-    D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "VS", "vs_5_0", 0, 0, &vs_blob, NULL);
+    D3DCompileFromFile(L"cloth.hlsl", NULL, NULL, "VS", "vs_5_0", 0, 0, &vs_blob, NULL);
     ID3DBlob* ps_blob = nullptr;
-    D3DCompileFromFile(L"../Simulations/cloth.hlsl", NULL, NULL, "PS", "ps_5_0", 0, 0, &ps_blob, NULL);
+    D3DCompileFromFile(L"cloth.hlsl", NULL, NULL, "PS", "ps_5_0", 0, 0, &ps_blob, NULL);
     ID3DBlob* cs_blob = nullptr;
     ID3DBlob* err_blob = nullptr;
-    hr = D3DCompileFromFile(L"../Simulations/update.hlsl", NULL, NULL, "CS", "cs_5_0", 0, 0, &cs_blob, &err_blob);
+    hr = D3DCompileFromFile(L"update.hlsl", NULL, NULL, "CS", "cs_5_0", 0, 0, &cs_blob, &err_blob);
     if(FAILED(hr)) {
         if(err_blob) {
             printf("Error %s\n", err_blob->GetBufferPointer());
         }
     }
-    hr = CreateDDSTextureFromFile(device, L"../Simulations/4WeirdW.dds",
+    hr = CreateDDSTextureFromFile(device, L"4WeirdW.dds",
                                   nullptr, &texture_view);
     if(FAILED(hr)) {
         printf("Failed to load texture\n");

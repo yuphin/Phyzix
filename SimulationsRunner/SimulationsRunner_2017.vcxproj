@@ -108,6 +108,11 @@
     <FxCompile>
       <ObjectFileOutput>$(OutDir)%(Filename).fxo</ObjectFileOutput>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>xcopy /Y "$(SolutionDir)Simulations\*.hlsl" "$(OutDir)*.hlsl"
+xcopy /Y "$(SolutionDir)Simulations\*.dds" "$(OutDir)*.dds"</Command>
+      <Message>Copying resources into output dir</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -139,6 +144,13 @@
     <FxCompile>
       <ObjectFileOutput>$(OutDir)%(Filename).fxo</ObjectFileOutput>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>xcopy /Y "$(SolutionDir)Simulations\*.hlsl" "$(OutDir)*.hlsl"
+xcopy /Y "$(SolutionDir)Simulations\*.dds" "$(OutDir)*.dds"</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>Copying resources into out dir</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -171,6 +183,11 @@
     <FxCompile>
       <ObjectFileOutput>$(OutDir)%(Filename).fxo</ObjectFileOutput>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>xcopy /Y "$(SolutionDir)Simulations\*.hlsl" "$(OutDir)*.hlsl"
+xcopy /Y "$(SolutionDir)Simulations\*.dds" "$(OutDir)*.dds"</Command>
+      <Message>Copying resources into output dir</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -206,6 +223,13 @@
     <FxCompile>
       <ObjectFileOutput>$(OutDir)%(Filename).fxo</ObjectFileOutput>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>xcopy /Y "$(SolutionDir)Simulations\*.hlsl" "$(OutDir)*.hlsl"
+xcopy /Y "$(SolutionDir)Simulations\*.dds" "$(OutDir)*.dds"</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>Copying resources into out dir</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Simulations\main.cpp" />

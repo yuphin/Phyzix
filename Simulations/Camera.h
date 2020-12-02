@@ -2,14 +2,14 @@
 #include "DrawingUtilitiesClass.h"
 class Camera {
 public:
-	Camera(Vec3& eye, Vec3& target, float fov);
-	Vec3 pos;
-	Vec3 up;
-	Vec3 right;
-	Vec3 forward;
+	Camera(Vec3f& eye, Vec3f& target, float fov);
+	Vec3f pos;
+	Vec3f up;
+	Vec3f right;
+	Vec3f forward;
 	float fov;
 	bool moving;
 private:
-	void look_at(const Vec3& pos, const Vec3& target, const Vec3& up);
+	void look_at(const Vec3f& pos, const Vec3f& target, const Vec3f& up);
 
 };

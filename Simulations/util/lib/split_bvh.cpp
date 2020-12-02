@@ -14,7 +14,7 @@ namespace RadeonRays
         PrimRefArray primrefs(numbounds);
 
         // Keep centroids to speed up partitioning
-        std::vector<Vec3> centroids(numbounds);
+        std::vector<Vec3f> centroids(numbounds);
         bbox centroid_bounds;
 
         for (auto i = 0; i < numbounds; ++i)
@@ -213,8 +213,8 @@ namespace RadeonRays
         // put NAN sentinel as split border
         // PerformObjectSplit simply splits in half
         // in this case
-        Vec3 centroid_extents = req.centroid_bounds.extents();
-        if (Vec3_dot(centroid_extents, centroid_extents) == 0.f)
+        Vec3f centroid_extents = req.centroid_bounds.extents();
+        if (Vec3f_dot(centroid_extents, centroid_extents) == 0.f)
         {
             return split;
         }
@@ -329,11 +329,11 @@ namespace RadeonRays
 
 
         // Extents
-        Vec3 extents = req.bounds.extents();
+        Vec3f extents = req.bounds.extents();
         auto invarea = 1.f / req.bounds.surface_area();
 
         // If there are too few primitives don't split them
-        if (Vec3_dot(extents,extents) == 0.f)
+        if (Vec3f_dot(extents,extents) == 0.f)
         {
             return split;
         }
@@ -349,9 +349,9 @@ namespace RadeonRays
         Bin bins[3][kNumBins];
 
         // Prepcompute some useful stuff
-        Vec3 origin = req.bounds.pmin;
-        Vec3 binsize = req.bounds.extents() * (1.f / kNumBins);
-        Vec3 invbinsize = Vec3(1.f / binsize.x, 1.f / binsize.y, 1.f / binsize.z);
+        Vec3f origin = req.bounds.pmin;
+        Vec3f binsize = req.bounds.extents() * (1.f / kNumBins);
+        Vec3f invbinsize = Vec3f(1.f / binsize.x, 1.f / binsize.y, 1.f / binsize.z);
 
         // Initialize bins
         for (int axis = 0; axis < 3; ++axis)
@@ -369,9 +369,9 @@ namespace RadeonRays
         {
             PrimRef const& primref(refs[i]);
             // Determine starting bin for this primitive
-            Vec3 firstbin = Vec3_clamp((primref.bounds.pmin - origin) * invbinsize, Vec3(0, 0, 0), Vec3(kNumBins - 1, kNumBins - 1, kNumBins - 1));
+            Vec3f firstbin = Vec3f_clamp((primref.bounds.pmin - origin) * invbinsize, Vec3f(0, 0, 0), Vec3f(kNumBins - 1, kNumBins - 1, kNumBins - 1));
             // Determine finishing bin
-            Vec3 lastbin = Vec3_clamp((primref.bounds.pmax - origin) * invbinsize, firstbin, Vec3(kNumBins - 1, kNumBins - 1, kNumBins - 1));
+            Vec3f lastbin = Vec3f_clamp((primref.bounds.pmax - origin) * invbinsize, firstbin, Vec3f(kNumBins - 1, kNumBins - 1, kNumBins - 1));
             // Iterate over axis
             for (int axis = 0; axis < 3; ++axis)
             {

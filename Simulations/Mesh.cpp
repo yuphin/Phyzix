@@ -60,13 +60,13 @@ void Mesh::build_bvh() {
 
 #pragma omp parallel for
 	for(int i = 0; i < num_tris; ++i) {
-		const Vec3 v1 = Vec3(vert_uvx[i * 3 + 0].x,
+		const Vec3f v1 = Vec3f(vert_uvx[i * 3 + 0].x,
 							 vert_uvx[i * 3 + 0].y,
 							 vert_uvx[i * 3 + 0].z);
-		const Vec3 v2 = Vec3(vert_uvx[i * 3 + 1].x,
+		const Vec3f v2 = Vec3f(vert_uvx[i * 3 + 1].x,
 							 vert_uvx[i * 3 + 1].y,
 							 vert_uvx[i * 3 + 1].z);
-		const Vec3 v3 = Vec3(vert_uvx[i * 3 + 2].x,
+		const Vec3f v3 = Vec3f(vert_uvx[i * 3 + 2].x,
 							 vert_uvx[i * 3 + 2].y,
 							 vert_uvx[i * 3 + 2].z);
 		bounds[i].grow(v1);

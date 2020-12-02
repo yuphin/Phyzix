@@ -20,13 +20,10 @@ public:
 		metallic = 0.0f;
 		roughness = 0.5f;
 		ior = 1.45f;
-		//unused2 = 0.0f;
 		albedo_texid = -1.0f;
 		metallic_rougness_texid = -1.0f;
 		normalmap_texid = -1.0f;
-		//unused3 = 0.0f;
 	};
-
 	Vec3f albedo;
 	float mat_type;
 	Vec3f emission;
@@ -34,9 +31,8 @@ public:
 	float metallic;
 	float roughness;
 	float ior;
-	//float unused2;
 	float albedo_texid;
 	float metallic_rougness_texid;
 	float normalmap_texid;
-	//float unused3;
+	float padding[2];
 };

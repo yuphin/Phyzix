@@ -1,10 +1,10 @@
 #include "Camera.h"
 
-Camera::Camera(Vec3& eye, Vec3& look_at, float fov) : fov(fov){
-	this->look_at(eye, look_at, Vec3(0,1,0));
+Camera::Camera(Vec3f& eye, Vec3f& look_at, float fov) : fov(fov){
+	this->look_at(eye, look_at, Vec3f(0,1,0));
 }
 
-void Camera::look_at(const Vec3& pos, const Vec3& target, const Vec3& up) {
+void Camera::look_at(const Vec3f& pos, const Vec3f& target, const Vec3f& up) {
 	this->pos = pos;
 	this->forward = target - pos;
 	normalize(this->forward);

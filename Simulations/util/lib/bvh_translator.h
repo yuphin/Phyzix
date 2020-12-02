@@ -47,29 +47,29 @@ namespace RadeonRays
 
 		struct Node
 		{
-			int leftIndex;
-			int rightIndex;
+			int left_index;
+			int right_index;
 			int leaf;
 		};
 
 		void ProcessBLAS();
 		void ProcessTLAS();
-		void UpdateTLAS(const Bvh *topLevelBvh, const std::vector<MeshInstance> &instances);
-		void Process(const Bvh *topLevelBvh, const std::vector<Mesh*> &meshes, const std::vector<MeshInstance> &instances);
-		int topLevelIndexPackedXY = 0;
-		int topLevelIndex = 0;
-		std::vector<Vec3> bboxmin;
-		std::vector<Vec3> bboxmax;
+		void UpdateTLAS(const Bvh *top_level_bvh, const std::vector<MeshInstance> &instances);
+		void Process(const Bvh *top_level_bvh, const std::vector<Mesh*> &meshes, const std::vector<MeshInstance> &instances);
+		int top_level_idx_packed_xy = 0;
+		int top_level_idx = 0;
+		std::vector<Vec3f> bboxmin;
+		std::vector<Vec3f> bboxmax;
 		std::vector<Node> nodes;
-		int nodeTexWidth;
+		int node_tex_width;
 
     private:
-		int curNode = 0;
-		int curTriIndex = 0;
-		std::vector<int> bvhRootStartIndices;
+		int cur_node = 0;
+		int cur_tri_idx = 0;
+		std::vector<int> bvh_root_start_indices;
 		int ProcessBLASNodes(const Bvh::Node *root);
 		int ProcessTLASNodes(const Bvh::Node *root);
-		std::vector<MeshInstance> meshInstances;
+		std::vector<MeshInstance> mesh_instances;
 		std::vector<Mesh*> meshes;
 		const Bvh *TLBvh;
     };

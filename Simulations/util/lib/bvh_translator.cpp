@@ -36,26 +36,26 @@ namespace RadeonRays
 	{
 		RadeonRays::bbox bbox = node->bounds;
 
-		bboxmin[curNode] = bbox.pmin;
-		bboxmax[curNode] = bbox.pmax;
-		nodes[curNode].leaf = 0;
+		bboxmin[cur_node] = bbox.pmin;
+		bboxmax[cur_node] = bbox.pmax;
+		nodes[cur_node].leaf = 0;
 
-		int index = curNode;
+		int index = cur_node;
 
 		if (node->type == RadeonRays::Bvh::NodeType::kLeaf)
 		{
-			nodes[curNode].leftIndex = curTriIndex + node->startidx;
-			nodes[curNode].rightIndex = node->numprims;
-			nodes[curNode].leaf = 1;
+			nodes[cur_node].left_index = cur_tri_idx + node->startidx;
+			nodes[cur_node].right_index = node->numprims;
+			nodes[cur_node].leaf = 1;
 		}
 		else
 		{
-			curNode++;
-			nodes[index].leftIndex = ProcessBLASNodes(node->lc);
-			nodes[index].leftIndex = ((nodes[index].leftIndex % nodeTexWidth) << 12) | (nodes[index].leftIndex / nodeTexWidth);
-			curNode++;
-			nodes[index].rightIndex = ProcessBLASNodes(node->rc);
-			nodes[index].rightIndex = ((nodes[index].rightIndex % nodeTexWidth) << 12) | (nodes[index].rightIndex / nodeTexWidth);
+			cur_node++;
+			nodes[index].left_index = ProcessBLASNodes(node->lc);
+			nodes[index].left_index = ((nodes[index].left_index % node_tex_width) << 12) | (nodes[index].left_index / node_tex_width);
+			cur_node++;
+			nodes[index].right_index = ProcessBLASNodes(node->rc);
+			nodes[index].right_index = ((nodes[index].right_index % node_tex_width) << 12) | (nodes[index].right_index / node_tex_width);
 		}
 		return index;
 	}
@@ -64,30 +64,30 @@ namespace RadeonRays
 	{
 		RadeonRays::bbox bbox = node->bounds;
 
-		bboxmin[curNode] = bbox.pmin;
-		bboxmax[curNode] = bbox.pmax;
-		nodes[curNode].leaf = 0;
+		bboxmin[cur_node] = bbox.pmin;
+		bboxmax[cur_node] = bbox.pmax;
+		nodes[cur_node].leaf = 0;
 
-		int index = curNode;
+		int index = cur_node;
 
 		if (node->type == RadeonRays::Bvh::NodeType::kLeaf)
 		{
 			int instanceIndex = TLBvh->m_packed_indices[node->startidx];
-			int meshIndex = meshInstances[instanceIndex].mesh_id;
-			int materialID = meshInstances[instanceIndex].material_id;
+			int meshIndex = mesh_instances[instanceIndex].mesh_id;
+			int materialID = mesh_instances[instanceIndex].material_id;
 
-			nodes[curNode].leftIndex = (bvhRootStartIndices[meshIndex] % nodeTexWidth) << 12 | (bvhRootStartIndices[meshIndex] / nodeTexWidth);
-			nodes[curNode].rightIndex = materialID;
-			nodes[curNode].leaf = -instanceIndex - 1;
+			nodes[cur_node].left_index = (bvh_root_start_indices[meshIndex] % node_tex_width) << 12 | (bvh_root_start_indices[meshIndex] / node_tex_width);
+			nodes[cur_node].right_index = materialID;
+			nodes[cur_node].leaf = -instanceIndex - 1;
 		}
 		else
 		{
-			curNode++;
-			nodes[index].leftIndex = ProcessTLASNodes(node->lc);
-			nodes[index].leftIndex = ((nodes[index].leftIndex % nodeTexWidth) << 12) | (nodes[index].leftIndex / nodeTexWidth);
-			curNode++;
-			nodes[index].rightIndex = ProcessTLASNodes(node->rc);
-			nodes[index].rightIndex = ((nodes[index].rightIndex % nodeTexWidth) << 12) | (nodes[index].rightIndex / nodeTexWidth);
+			cur_node++;
+			nodes[index].left_index = ProcessTLASNodes(node->lc);
+			nodes[index].left_index = ((nodes[index].left_index % node_tex_width) << 12) | (nodes[index].left_index / node_tex_width);
+			cur_node++;
+			nodes[index].right_index = ProcessTLASNodes(node->rc);
+			nodes[index].right_index = ((nodes[index].right_index % node_tex_width) << 12) | (nodes[index].right_index / node_tex_width);
 		}
 		return index;
 	}
@@ -98,45 +98,45 @@ namespace RadeonRays
 
 		for (int i = 0; i < meshes.size(); i++)
 			nodeCnt += meshes[i]->bvh->m_nodecnt;
-		topLevelIndex = nodeCnt;
+		top_level_idx = nodeCnt;
 
 		// reserve space for top level nodes
-		nodeCnt += 2 * meshInstances.size();
-		nodeTexWidth = (int)(sqrt(nodeCnt) + 1);
+		nodeCnt += 2 * mesh_instances.size();
+		node_tex_width = (int)(sqrt(nodeCnt) + 1);
 
 		// Resize to power of 2
-		bboxmin.resize(nodeTexWidth * nodeTexWidth);
-		bboxmax.resize(nodeTexWidth * nodeTexWidth);
-		nodes.resize(nodeTexWidth * nodeTexWidth);
+		bboxmin.resize(node_tex_width * node_tex_width);
+		bboxmax.resize(node_tex_width * node_tex_width);
+		nodes.resize(node_tex_width * node_tex_width);
 
 		int bvhRootIndex = 0;
-		curTriIndex = 0;
+		cur_tri_idx = 0;
 
 		for (int i = 0; i < meshes.size(); i++)
 		{
 			Mesh *mesh = meshes[i];
-			curNode = bvhRootIndex;
+			cur_node = bvhRootIndex;
 
-			bvhRootStartIndices.push_back(bvhRootIndex);
+			bvh_root_start_indices.push_back(bvhRootIndex);
 			bvhRootIndex += mesh->bvh->m_nodecnt;
 			
 			ProcessBLASNodes(mesh->bvh->m_root);
-			curTriIndex += mesh->bvh->GetNumIndices();
+			cur_tri_idx += mesh->bvh->GetNumIndices();
 		}
 	}
 
 	void BvhTranslator::ProcessTLAS()
 	{
-		curNode = topLevelIndex;
-		topLevelIndexPackedXY = ((topLevelIndex % nodeTexWidth) << 12) | (topLevelIndex / nodeTexWidth);
+		cur_node = top_level_idx;
+		top_level_idx_packed_xy = ((top_level_idx % node_tex_width) << 12) | (top_level_idx / node_tex_width);
 		ProcessTLASNodes(TLBvh->m_root);
 	}
 
 	void BvhTranslator::UpdateTLAS(const Bvh *topLevelBvh, const std::vector<MeshInstance> &sceneInstances)
 	{
 		TLBvh = topLevelBvh;
-		meshInstances = sceneInstances;
-		curNode = topLevelIndex;
+		mesh_instances = sceneInstances;
+		cur_node = top_level_idx;
 		ProcessTLASNodes(TLBvh->m_root);
 	}
 
@@ -144,7 +144,7 @@ namespace RadeonRays
 	{
 		TLBvh = topLevelBvh;
 		meshes = sceneMeshes;
-		meshInstances = sceneInstances;
+		mesh_instances = sceneInstances;
 		ProcessBLAS();
 		ProcessTLAS();
 	}

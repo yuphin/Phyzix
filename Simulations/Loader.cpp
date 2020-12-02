@@ -106,7 +106,7 @@ bool load_scene(const std::string& filename, Scene* scene, const Options& render
 
 		if(strstr(line, "light")) {
 			Light light;
-			Vec3 v1, v2;
+			Vec3f v1, v2;
 			char light_type[20] = "None";
 
 			while(fgets(line, k_max_line_len, file)) {
@@ -139,8 +139,8 @@ bool load_scene(const std::string& filename, Scene* scene, const Options& render
 		// Camera
 		// TODO: Finish camera
 		if(strstr(line, "Camera")) {
-			Vec3 position;
-			Vec3 lookat;
+			Vec3f position;
+			Vec3f lookat;
 			float fov;
 			float aperture = 0, focal_dist = 1;
 
@@ -194,8 +194,8 @@ bool load_scene(const std::string& filename, Scene* scene, const Options& render
 
 		if(strstr(line, "mesh")) {
 			std::string filename;
-			Vec3 pos;
-			Vec3 scale;
+			Vec3f pos;
+			Vec3f scale;
 			Mat4f transform;
 			int material_id = 0; // Default Material ID
 			char mesh_name[200] = "None";
@@ -254,7 +254,7 @@ bool load_scene(const std::string& filename, Scene* scene, const Options& render
 	fclose(file);
 
 	if(!cameraAdded)
-		scene->add_camera(Vec3(0.0f, 0.0f, 10.0f), Vec3(0.0f, 0.0f, -10.0f), 35.0f);
+		scene->add_camera(Vec3f(0.0f, 0.0f, 10.0f), Vec3f(0.0f, 0.0f, -10.0f), 35.0f);
 
 	scene->create_acceleration_structures();
 

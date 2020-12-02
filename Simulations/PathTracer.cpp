@@ -1,8 +1,9 @@
 #include "PathTracer.h"
-
+#include "util/vector4d.h"
 PathTracer::PathTracer(ID3D11Device* device, ID3D11DeviceContext* context,
-					   CModelViewerCamera* camera) :
-	device(device), context(context), camera(camera), output_tex(2) {
+					   CModelViewerCamera* camera, Scene* scene) :
+	device(device), context(context), camera(camera), output_tex(2),
+	scene(scene) {
 	dsv = DXUTGetD3D11DepthStencilView();
 	rtv = DXUTGetD3D11RenderTargetView();
 }
@@ -13,8 +14,8 @@ void PathTracer::init() {
 	ID3DBlob* err_blob = nullptr;
 	ID3DBlob* vs_blob = nullptr;
 
-	hr = D3DCompileFromFile(L"path_trace.hlsl", NULL, NULL, "VS", "vs_5_0", 
-					   0, 0, &vs_blob, &err_blob);
+	hr = D3DCompileFromFile(L"path_trace.hlsl", NULL, NULL, "VS", "vs_5_0",
+							0, 0, &vs_blob, &err_blob);
 	if(FAILED(hr) && err_blob) {
 		eprintf("Failed to load vertex shader");
 	}
@@ -23,8 +24,8 @@ void PathTracer::init() {
 	ID3DBlob* tile_out_blob = nullptr;
 	ID3DBlob* out_blob = nullptr;
 
-	hr = D3DCompileFromFile(L"path_trace.hlsl", NULL, NULL, "PS", "ps_5_0", 
-					   0, 0, &pt_blob, &err_blob);
+	hr = D3DCompileFromFile(L"path_trace.hlsl", NULL, NULL, "PS", "ps_5_0",
+							0, 0, &pt_blob, &err_blob);
 	if(FAILED(hr) && err_blob) {
 		eprintf("Failed to load path trace shader");
 	}
@@ -44,7 +45,7 @@ void PathTracer::init() {
 		eprintf("Failed to load final pass shader");
 	}
 
-	device->CreateVertexShader(vs_blob->GetBufferPointer(), 
+	device->CreateVertexShader(vs_blob->GetBufferPointer(),
 							   vs_blob->GetBufferSize(), NULL, &vertex_shader);
 	device->CreatePixelShader(pt_blob->GetBufferPointer(),
 							  pt_blob->GetBufferSize(), NULL, &pt_shader);
@@ -54,10 +55,10 @@ void PathTracer::init() {
 							  tile_out_blob->GetBufferSize(), NULL, &tile_output_shader);
 	device->CreatePixelShader(out_blob->GetBufferPointer(),
 							  out_blob->GetBufferSize(), NULL, &output_shader);
-	// Create textures
+	// Create textures for rendering
 	path_trace_tex.init(device, tile_width, tile_height);
 	path_trace_tmp_tex.init(device, tile_width * pixel_ratio,
-									   tile_width * pixel_ratio);
+							tile_width * pixel_ratio);
 	accum_tex.init(device, screen_size.x, screen_size.y);
 	for(auto& tex : output_tex) {
 		tex.init(device, screen_size.x, screen_size.y);
@@ -65,9 +66,63 @@ void PathTracer::init() {
 	// Create samplers
 	create_sampler(device, &pt_sampler);
 	create_sampler(device, &pt_sampler_lowres, D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP);
+
+	// Create texture for BVH
+	bvh_tex.init(device, scene->bvhTranslator.node_tex_width, scene->bvhTranslator.node_tex_width,
+				 false, DXGI_FORMAT_R32G32B32_SINT, scene->bvhTranslator.nodes.data(),
+				 sizeof(RadeonRays::BvhTranslator::Node) * scene->bvhTranslator.nodes.size(),
+				 context);
+	// Create textures for bounding box
+	bb_min_tex.init(device, scene->bvhTranslator.node_tex_width,
+					scene->bvhTranslator.node_tex_width,
+					false, DXGI_FORMAT_R32G32B32_FLOAT,
+					scene->bvhTranslator.bboxmin.data(),
+					sizeof(float) * 3 * scene->bvhTranslator.bboxmin.size(),
+					context);
+	bb_max_tex.init(device, scene->bvhTranslator.node_tex_width,
+					scene->bvhTranslator.node_tex_width,
+					false, DXGI_FORMAT_R32G32B32_FLOAT,
+					scene->bvhTranslator.bboxmax.data(),
+					sizeof(float) * 3 * scene->bvhTranslator.bboxmax.size(),
+					context);
+	// Create texture for indices
+	idx_tex.init(device, scene->indices_tex_width, scene->indices_tex_width, false,
+				 DXGI_FORMAT_R32G32B32_SINT, scene->vert_indices.data(),
+				 sizeof(Indices) * scene->vert_indices.size(),
+				 context);
+	// Create texture for vertices
+	vert_tex.init(device, scene->vert_tex_width, scene->vert_tex_width, false,
+				  DXGI_FORMAT_R32G32B32A32_FLOAT, scene->vertices_uvx.data(),
+				  sizeof(float) * 4 * scene->vertices_uvx.size(),
+				  context);
+	// Create texture for normals
+	normals_tex.init(device, scene->vert_tex_width, scene->vert_tex_width, false,
+					 DXGI_FORMAT_R32G32B32A32_FLOAT, scene->normals_uvy.data(),
+					 sizeof(float) * 4 * scene->normals_uvy.size(),
+					 context);
+	// Create texture for materials
+	// Material struct is 16 floats
+	auto mat_tex_size = (sizeof(Material) / sizeof(float) * 4) * scene->materials.size();
+	// This is just a row texture
+	normals_tex.init(device, mat_tex_size, 1, false,
+					 DXGI_FORMAT_R32G32B32A32_FLOAT, scene->materials.data(),
+					 sizeof(float) * 16 * scene->materials.size(),
+					 context);
+	// Create texture for transforms
+	// Row texture
+	auto transforms_tex_size = 4 * scene->transforms.size();
+	transforms_tex.init(device, transforms_tex_size, 1, false,
+						DXGI_FORMAT_R32G32B32A32_FLOAT, scene->transforms.data(),
+						sizeof(float) * 16 * scene->transforms.size(),
+						context);
+	if(num_lights > 0) {
+		auto light_tex_size = (sizeof(Light) / sizeof(Vec3f)) * scene->lights.size();
+		lights_tex.init(device, light_tex_size, 1, false,
+						DXGI_FORMAT_R32G32B32_FLOAT,
+						scene->lights.data(), sizeof(Light) * scene->lights.size(),
+						context);
+	}
 }
-
-
 
 void PathTracer::render() {
 	// Render a tile
@@ -144,7 +199,7 @@ void PathTracer::unbind_ps() {
 }
 
 void PathTracer::set_viewport(int x, int y, int width, int height) {
-	D3D11_VIEWPORT viewport = {x, y, width, height, 0, 1};
+	D3D11_VIEWPORT viewport = { x, y, width, height, 0, 1 };
 	context->RSSetViewports(1, &viewport);
 }
 

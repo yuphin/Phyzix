@@ -25,27 +25,27 @@ inline float clampf(float value, float low, float high) {
     return (value < low) ? low : (high < value) ? high : value;
 }
 
-inline Vec3 Vec3_min(const Vec3& a, const Vec3& b) {
-    Vec3 out;
+inline Vec3f Vec3f_min(const Vec3f& a, const Vec3f& b) {
+    Vec3f out;
     out.x = std::min(a.x, b.x);
     out.y = std::min(a.y, b.y);
     out.z = std::min(a.z, b.z);
     return out;
 }
-inline Vec3 Vec3_max(const Vec3& a, const Vec3& b) {
-    Vec3 out;
+inline Vec3f Vec3f_max(const Vec3f& a, const Vec3f& b) {
+    Vec3f out;
     out.x = std::max(a.x, b.x);
     out.y = std::max(a.y, b.y);
     out.z = std::max(a.z, b.z);
     return out;
 }
 
-inline float Vec3_dot(const Vec3& a, const Vec3& b) {
+inline float Vec3f_dot(const Vec3f& a, const Vec3f& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-inline Vec3 Vec3_clamp(const Vec3& a, const Vec3& min, const Vec3& max) {
-    return Vec3(
+inline Vec3f Vec3f_clamp(const Vec3f& a, const Vec3f& min, const Vec3f& max) {
+    return Vec3f(
         clampf(a.x, min.x, max.x),
         clampf(a.y, min.y, max.y),
         clampf(a.z, min.z, max.z)

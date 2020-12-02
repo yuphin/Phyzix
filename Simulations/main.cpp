@@ -380,7 +380,6 @@ int main(int argc, char* argv[]) {
 	DXUTSetCallbackD3D11DeviceDestroyed( OnD3D11DestroyDevice );
 	// Init Drawing Class
 	duc = new DrawingUtilitiesClass();
-
     // Init camera
  	XMFLOAT3 eye(0.0f, 0.4f, 8.0f);
 	XMFLOAT3 lookAt(0.0f, 0.0f, 0.0f);
@@ -416,7 +415,7 @@ int main(int argc, char* argv[]) {
 	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(duc->g_ppd3Device);
 #endif
 	path_tracer = std::make_unique<PathTracer>(duc->g_ppd3Device, duc->g_pd3dImmediateContext,
-											   &duc->g_camera);
+											   &duc->g_camera, scene.get());
 	path_tracer->init();
 	DXUTMainLoop(); // Enter into the DXUT render loop
 	if(g_pSimulator) {

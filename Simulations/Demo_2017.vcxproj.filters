@@ -24,13 +24,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="util\lib\bvh.cpp">
-      <Filter>Lib</Filter>
-    </ClCompile>
     <ClCompile Include="util\lib\bbox.cpp">
-      <Filter>Lib</Filter>
-    </ClCompile>
-    <ClCompile Include="util\lib\bvh_translator.cpp">
       <Filter>Lib</Filter>
     </ClCompile>
     <ClCompile Include="util\lib\split_bvh.cpp">
@@ -66,15 +60,18 @@
     <ClCompile Include="Loader.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="util\lib\bvh.cpp">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="util\lib\bvh_translator.cpp">
+      <Filter>Lib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util\lib\bbox.h">
       <Filter>Lib</Filter>
     </ClInclude>
     <ClInclude Include="util\lib\bvh.h">
-      <Filter>Lib</Filter>
-    </ClInclude>
-    <ClInclude Include="util\lib\bvh_translator.h">
       <Filter>Lib</Filter>
     </ClInclude>
     <ClInclude Include="util\lib\split_bvh.h">
@@ -139,6 +136,9 @@
     </ClInclude>
     <ClInclude Include="Options.h">
       <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="util\lib\bvh_translator.h">
+      <Filter>Lib</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

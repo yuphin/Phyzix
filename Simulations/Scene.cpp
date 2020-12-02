@@ -1,6 +1,6 @@
 #include "Scene.h"
 
-void Scene::add_camera(Vec3 pos, Vec3 lookat, float fov) {
+void Scene::add_camera(Vec3f pos, Vec3f lookat, float fov) {
 	camera = std::make_unique<Camera>(pos, lookat, fov);
 }
 
@@ -51,25 +51,25 @@ void Scene::create_tlas() {
 //		RadeonRays::bbox bbox = meshes[mesh_instances[i].mesh_id]->bvh->Bounds();
 //		Mat4f matrix = mesh_instances[i].transform;
 //
-//		Vec3 minBound = bbox.pmin;
-//		Vec3 maxBound = bbox.pmax;
+//		Vec3f minBound = bbox.pmin;
+//		Vec3f maxBound = bbox.pmax;
 //
-//		Vec3 right = Vec3(matrix[0][0], matrix[0][1], matrix[0][2]);
-//		Vec3 up = Vec3(matrix[1][0], matrix[1][1], matrix[1][2]);
-//		Vec3 forward = Vec3(matrix[2][0], matrix[2][1], matrix[2][2]);
-//		Vec3 translation = Vec3(matrix[3][0], matrix[3][1], matrix[3][2]);
+//		Vec3f right = Vec3f(matrix[0][0], matrix[0][1], matrix[0][2]);
+//		Vec3f up = Vec3f(matrix[1][0], matrix[1][1], matrix[1][2]);
+//		Vec3f forward = Vec3f(matrix[2][0], matrix[2][1], matrix[2][2]);
+//		Vec3f translation = Vec3f(matrix[3][0], matrix[3][1], matrix[3][2]);
 //
-//		Vec3 xa = right * minBound.x;
-//		Vec3 xb = right * maxBound.x;
+//		Vec3f xa = right * minBound.x;
+//		Vec3f xb = right * maxBound.x;
 //
-//		Vec3 ya = up * minBound.y;
-//		Vec3 yb = up * maxBound.y;
+//		Vec3f ya = up * minBound.y;
+//		Vec3f yb = up * maxBound.y;
 //
-//		Vec3 za = forward * minBound.z;
-//		Vec3 zb = forward * maxBound.z;
+//		Vec3f za = forward * minBound.z;
+//		Vec3f zb = forward * maxBound.z;
 //
-//		minBound = Vec3_min(xa, xb) + Vec3_min(ya, yb) + Vec3_min(za, zb) + translation;
-//		maxBound = Vec3_max(xa, xb) + Vec3_max(ya, yb) + Vec3_max(za, zb) + translation;
+//		minBound = Vec3f_min(xa, xb) + Vec3f_min(ya, yb) + Vec3f_min(za, zb) + translation;
+//		maxBound = Vec3f_max(xa, xb) + Vec3f_max(ya, yb) + Vec3f_max(za, zb) + translation;
 //
 //		RadeonRays::bbox bound;
 //		bound.pmin = minBound;
@@ -130,24 +130,24 @@ void Scene::create_acceleration_structures() {
 			vert_indices.push_back(Indices{ v1, v2, v3 });
 		}
 
-		verticesUVX.insert(verticesUVX.end(), meshes[i]->vert_uvx.begin(), meshes[i]->vert_uvx.end());
-		normalsUVY.insert(normalsUVY.end(), meshes[i]->normals_uvy.begin(), meshes[i]->normals_uvy.end());
+		vertices_uvx.insert(vertices_uvx.end(), meshes[i]->vert_uvx.begin(), meshes[i]->vert_uvx.end());
+		normals_uvy.insert(normals_uvy.end(), meshes[i]->normals_uvy.begin(), meshes[i]->normals_uvy.end());
 
 		verticesCnt += meshes[i]->vert_uvx.size();
 	}
 
 	// Resize to power of 2
-	indicesTexWidth = (int) (sqrt(vert_indices.size()) + 1);
-	triDataTexWidth = (int) (sqrt(verticesUVX.size()) + 1);
+	indices_tex_width = (int) (sqrt(vert_indices.size()) + 1);
+	vert_tex_width = (int) (sqrt(vertices_uvx.size()) + 1);
 
-	vert_indices.resize(indicesTexWidth * indicesTexWidth);
-	verticesUVX.resize(triDataTexWidth * triDataTexWidth);
-	normalsUVY.resize(triDataTexWidth * triDataTexWidth);
+	vert_indices.resize(indices_tex_width * indices_tex_width);
+	vertices_uvx.resize(vert_tex_width * vert_tex_width);
+	normals_uvy.resize(vert_tex_width * vert_tex_width);
 
 	for(int i = 0; i < vert_indices.size(); i++) {
-		vert_indices[i].x = ((vert_indices[i].x % triDataTexWidth) << 12) | (vert_indices[i].x / triDataTexWidth);
-		vert_indices[i].y = ((vert_indices[i].y % triDataTexWidth) << 12) | (vert_indices[i].y / triDataTexWidth);
-		vert_indices[i].z = ((vert_indices[i].z % triDataTexWidth) << 12) | (vert_indices[i].z / triDataTexWidth);
+		vert_indices[i].x = ((vert_indices[i].x % vert_tex_width) << 12) | (vert_indices[i].x / vert_tex_width);
+		vert_indices[i].y = ((vert_indices[i].y % vert_tex_width) << 12) | (vert_indices[i].y / vert_tex_width);
+		vert_indices[i].z = ((vert_indices[i].z % vert_tex_width) << 12) | (vert_indices[i].z / vert_tex_width);
 	}
 
 	//Copy transforms

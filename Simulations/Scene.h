@@ -11,7 +11,7 @@
 #include "util/vector4d.h"
 // Note : Scene system adapted from https://github.com/knightcrawler25/GLSL-PathTracer
 // Including meshes, loading etc.
-//using Vec3 = vector3Dim<Real>;
+//using Vec3f = vector3Dim<Real>;
 class Camera;
 enum LightType {
 	TYPE_SPHERE,
@@ -19,10 +19,10 @@ enum LightType {
 };
 struct Light {
    
-	Vec3 position;
-    Vec3 emission;
-    Vec3 u;
-    Vec3 v;
+	Vec3f position;
+    Vec3f emission;
+    Vec3f u;
+    Vec3f v;
 	float radius;
 	float area;
 	float type;
@@ -40,7 +40,7 @@ public:
     int add_mesh_instance(const MeshInstance& meshInstance);
     int add_light(const Light& light);
 
-    void add_camera(Vec3 eye, Vec3 lookat, float fov);
+    void add_camera(Vec3f eye, Vec3f lookat, float fov);
 
     void create_acceleration_structures();
     void rebuild();
@@ -53,11 +53,11 @@ public:
     matrix4x4<float> asda;
     // Scene Mesh Data 
     std::vector<Indices>   vert_indices;
-    std::vector<Vec4> verticesUVX; // Vertex Data + x coord of uv 
-    std::vector<Vec4> normalsUVY;  // Normal Data + y coord of uv
+    std::vector<Vec4> vertices_uvx; // Vertex Data + x coord of uv 
+    std::vector<Vec4> normals_uvy;  // Normal Data + y coord of uv
     std::vector<matrix4x4<float>> transforms;
-    int indicesTexWidth;
-    int triDataTexWidth;
+    int indices_tex_width;
+    int vert_tex_width;
 
     //Instances
     std::vector<Material> materials;

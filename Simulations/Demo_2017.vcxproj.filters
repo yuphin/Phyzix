@@ -1,0 +1,166 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <FxCompile Include="accumulation.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="cloth.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="effect.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="output.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="path_trace.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="tile_output.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="update.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="util\lib\bvh.cpp">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="util\lib\bbox.cpp">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="util\lib\bvh_translator.cpp">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="util\lib\split_bvh.cpp">
+      <Filter>Lib</Filter>
+    </ClCompile>
+    <ClCompile Include="util\FFmpeg.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="TemplateSimulator.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="util\util.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="PathTracer.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="util\RenderTexture.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="MassSpringSystemSimulator.cpp">
+      <Filter>Simulator</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Loader.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="util\lib\bbox.h">
+      <Filter>Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="util\lib\bvh.h">
+      <Filter>Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="util\lib\bvh_translator.h">
+      <Filter>Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="util\lib\split_bvh.h">
+      <Filter>Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="util\lib\tiny_obj_loader.h">
+      <Filter>Lib</Filter>
+    </ClInclude>
+    <ClInclude Include="util\FFmpeg.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="TemplateSimulator.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="DrawingUtilitiesClass.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="util\util.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="util\vectorbase.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="util\vector2d.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="util\quaternion.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="util\matrixbase.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="util\timer.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="PathTracer.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="util\RenderTexture.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="MassSpringSystemSimulator.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulator.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Loader.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Options.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Lib">
+      <UniqueIdentifier>{e9a3cb67-5dab-4e18-bd7d-92156724ca60}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{e6a896c5-87be-4af4-bce9-1101a50f29fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utilities">
+      <UniqueIdentifier>{fb534858-ce9b-4f40-a068-651bbc890e7d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Renderer">
+      <UniqueIdentifier>{10f14190-0b81-42c0-9c6c-c537b42e99c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Simulator">
+      <UniqueIdentifier>{2ea50d7a-6a03-4a58-bc9c-52d93d54c548}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\readme.txt">
+      <Filter>Utilities</Filter>
+    </Text>
+  </ItemGroup>
+</Project>

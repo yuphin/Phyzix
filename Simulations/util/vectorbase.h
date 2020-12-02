@@ -1131,7 +1131,7 @@ template<class Vec> bool intVecIsEqual(Vec a, Vec b) {
 typedef vector3Dim<double>  nVec3d; 
 
 // a 3D vector with single precision
-typedef vector3Dim<float>   nVec3f; 
+typedef vector3Dim<float>   Vec3f; 
 
 // a 3D integer vector
 typedef vector3Dim<int>     nVec3i; 
@@ -1141,7 +1141,7 @@ template<class T> inline nVec3i vec2I(T v) { return nVec3i((int)v[0],(int)v[1],(
 template<class T> inline nVec3i vec2I(T v0, T v1, T v2) { return nVec3i((int)v0,(int)v1,(int)v2); }
 template<class T> inline nVec3d vec2D(T v) { return nVec3d(v[0],v[1],v[2]); }
 template<class T> inline nVec3i vec2D(T v0, T v1, T v2) { return nVec3d((double)v0,(double)v1,(double)v2); }
-template<class T> inline nVec3f vec2F(T v) { return nVec3f(v[0],v[1],v[2]); }
+template<class T> inline Vec3f vec2F(T v) { return Vec3f(v[0],v[1],v[2]); }
 template<class T> inline nVec3i vec2F(T v0, T v1, T v2) { return nVec3f((float)v0,(float)v1,(float)v2); }
 template<class T> inline nVec3i vecround(T v) { return nVec3i((int)round(v[0]),(int)round(v[1]),(int)round(v[2])); }
 

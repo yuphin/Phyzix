@@ -15,6 +15,7 @@
 #include "util/util.h"
 #include "util/FFmpeg.h"
 
+#include "Scene.h"
 using namespace DirectX;
 using namespace GamePhysics;
 
@@ -57,22 +58,23 @@ int res_y = 700;
 // Video recorder
 FFmpeg* g_pFFmpegVideoRecorder = nullptr;
 std::unique_ptr<PathTracer> path_tracer = nullptr;
+std::unique_ptr<Scene> scene = nullptr;
 void initTweakBar(){
 #ifndef EXPERIMENTAL
-	g_pDUC->g_pTweakBar = TwNewBar("TweakBar");
+	duc->g_pTweakBar = TwNewBar("TweakBar");
 	auto tw_str = g_pSimulator ? g_pSimulator->getTestCasesStr() : "Path Tracer";
 	TwDefine(" TweakBar color='0 128 128' alpha=128 ");
 	TwType TW_TYPE_TESTCASE = TwDefineEnumFromString("Test Scene", tw_str);
-	TwAddVarRW(g_pDUC->g_pTweakBar, "Test Scene", TW_TYPE_TESTCASE, &g_iTestCase, "");
+	TwAddVarRW(duc->g_pTweakBar, "Test Scene", TW_TYPE_TESTCASE, &g_iTestCase, "");
 	// HINT: For buttons you can directly pass the callback function as a lambda expression.
-	TwAddButton(g_pDUC->g_pTweakBar, "Reset Scene", [](void * s){ g_iPreTestCase = -1; }, nullptr, "");
-	TwAddButton(g_pDUC->g_pTweakBar, "Reset Camera", [](void * s){g_pDUC->g_camera.Reset();}, nullptr,"");
+	TwAddButton(duc->g_pTweakBar, "Reset Scene", [](void * s){ g_iPreTestCase = -1; }, nullptr, "");
+	TwAddButton(duc->g_pTweakBar, "Reset Camera", [](void * s){duc->g_camera.Reset();}, nullptr,"");
 	// Run mode, step by step, control by space key
-	TwAddVarRW(g_pDUC->g_pTweakBar, "RunStep", TW_TYPE_BOOLCPP, &g_bSimulateByStep, "");
-	TwAddVarRW(g_pDUC->g_pTweakBar, "Draw Simulation",  TW_TYPE_BOOLCPP, &g_bDraw, "");
-	TwAddVarRW(g_pDUC->g_pTweakBar, "Timestep", TW_TYPE_FLOAT, &g_fTimestep, "step=0.0001 min=0.0001");
+	TwAddVarRW(duc->g_pTweakBar, "RunStep", TW_TYPE_BOOLCPP, &g_bSimulateByStep, "");
+	TwAddVarRW(duc->g_pTweakBar, "Draw Simulation",  TW_TYPE_BOOLCPP, &g_bDraw, "");
+	TwAddVarRW(duc->g_pTweakBar, "Timestep", TW_TYPE_FLOAT, &g_fTimestep, "step=0.0001 min=0.0001");
 #ifdef ADAPTIVESTEP
-	TwAddVarRW(g_pDUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &g_fTimeFactor, "step=0.01   min=0.01");
+	TwAddVarRW(duc->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &g_fTimeFactor, "step=0.01   min=0.01");
 #endif
 #else
 	duc->g_pTweakBar = TwNewBar("TweakBar");
@@ -263,7 +265,7 @@ void CALLBACK OnFrameMove( double dTime, float fElapsedTime, void* pUserContext 
 		initTweakBar();
 #ifndef EXPERIMENTAL
 		g_pSimulator->notifyCaseChanged(g_iTestCase);
-		g_pSimulator->initUI(g_pDUC);
+		g_pSimulator->initUI(duc);
 
 		g_iPreTestCase = g_iTestCase;
 	}
@@ -331,7 +333,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
 #if false
-	draw_template_scene(g_pDUC, g_bDraw, pd3dImmediateContext)
+	draw_template_scene(duc, g_bDraw, pd3dImmediateContext)
 #endif
 	path_tracer->render();
 	D3D11_VIEWPORT viewport = { 0, 0, res_x, res_y, 0, 1 };
@@ -411,7 +413,7 @@ int main(int argc, char* argv[]) {
 	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, res_x, res_y);
 
 #ifdef MASS_SPRING_SYSTEM
-	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(g_pDUC->g_ppd3Device);
+	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(duc->g_ppd3Device);
 #endif
 	path_tracer = std::make_unique<PathTracer>(duc->g_ppd3Device, duc->g_pd3dImmediateContext,
 											   &duc->g_camera);

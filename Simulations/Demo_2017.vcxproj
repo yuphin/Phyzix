@@ -103,7 +103,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;NOMINMAX;_CONSOLE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include;$(ProjectDir)util/lib</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
     </ClCompile>
@@ -131,7 +131,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;NOMINMAX;_CONSOLE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include;$(ProjectDir)util/lib</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>
@@ -164,7 +164,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NOMINMAX;_CONSOLE;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include;$(ProjectDir)util/lib</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
     </ClCompile>
@@ -196,7 +196,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NOMINMAX;_CONSOLE;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include;$(ProjectDir)util/lib</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>
@@ -224,22 +224,40 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Loader.cpp" />
     <ClCompile Include="MassSpringSystemSimulator.cpp" />
+    <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="PathTracer.cpp" />
+    <ClCompile Include="Scene.cpp" />
     <ClCompile Include="TemplateSimulator.cpp" />
     <ClCompile Include="util\FFmpeg.cpp" />
+    <ClCompile Include="util\lib\bbox.cpp" />
+    <ClCompile Include="util\lib\bvh.cpp" />
+    <ClCompile Include="util\lib\bvh_translator.cpp" />
+    <ClCompile Include="util\lib\split_bvh.cpp" />
     <ClCompile Include="util\RenderTexture.cpp" />
     <ClCompile Include="util\util.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="DrawingUtilitiesClass.h" />
+    <ClInclude Include="Loader.h" />
     <ClInclude Include="MassSpringSystemSimulator.h" />
+    <ClInclude Include="Material.h" />
+    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Options.h" />
     <ClInclude Include="PathTracer.h" />
+    <ClInclude Include="Scene.h" />
     <ClInclude Include="Simulator.h" />
     <ClInclude Include="TemplateSimulator.h" />
     <ClInclude Include="util\FFmpeg.h" />
+    <ClInclude Include="util\lib\bbox.h" />
+    <ClInclude Include="util\lib\bvh.h" />
+    <ClInclude Include="util\lib\bvh_translator.h" />
+    <ClInclude Include="util\lib\split_bvh.h" />
+    <ClInclude Include="util\lib\tiny_obj_loader.h" />
     <ClInclude Include="util\matrixbase.h" />
-    <ClInclude Include="util\Quad.h" />
     <ClInclude Include="util\quaternion.h" />
     <ClInclude Include="util\RenderTexture.h" />
     <ClInclude Include="util\timer.h" />

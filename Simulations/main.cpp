@@ -21,9 +21,10 @@ using namespace GamePhysics;
 //#define ADAPTIVESTEP
 
 //#define TEMPLATE_DEMO
-#define MASS_SPRING_SYSTEM
+//#define MASS_SPRING_SYSTEM
 //#define RIGID_BODY_SYSTEM
 //#define SPH_SYSTEM
+#define EXPERIMENTAL
 
 #ifdef TEMPLATE_DEMO
 #include "TemplateSimulator.h"
@@ -38,8 +39,10 @@ using namespace GamePhysics;
 //#include "SPHSystemSimulator.h"
 #endif
 
-DrawingUtilitiesClass * g_pDUC;
-Simulator * g_pSimulator;
+#include "PathTracer.h"
+
+DrawingUtilitiesClass * duc = nullptr;
+Simulator * g_pSimulator = nullptr;
 float 	g_fTimestep = 0.001;
 #ifdef ADAPTIVESTEP
 float   g_fTimeFactor = 1;
@@ -49,14 +52,17 @@ int g_iTestCase = 0;
 int g_iPreTestCase = -1;
 bool  g_bSimulateByStep = false;
 bool firstTime = true;
+int res_x = 1200;
+int res_y = 700;
 // Video recorder
 FFmpeg* g_pFFmpegVideoRecorder = nullptr;
-
-
+std::unique_ptr<PathTracer> path_tracer = nullptr;
 void initTweakBar(){
+#ifndef EXPERIMENTAL
 	g_pDUC->g_pTweakBar = TwNewBar("TweakBar");
+	auto tw_str = g_pSimulator ? g_pSimulator->getTestCasesStr() : "Path Tracer";
 	TwDefine(" TweakBar color='0 128 128' alpha=128 ");
-	TwType TW_TYPE_TESTCASE = TwDefineEnumFromString("Test Scene", g_pSimulator->getTestCasesStr());
+	TwType TW_TYPE_TESTCASE = TwDefineEnumFromString("Test Scene", tw_str);
 	TwAddVarRW(g_pDUC->g_pTweakBar, "Test Scene", TW_TYPE_TESTCASE, &g_iTestCase, "");
 	// HINT: For buttons you can directly pass the callback function as a lambda expression.
 	TwAddButton(g_pDUC->g_pTweakBar, "Reset Scene", [](void * s){ g_iPreTestCase = -1; }, nullptr, "");
@@ -68,8 +74,14 @@ void initTweakBar(){
 #ifdef ADAPTIVESTEP
 	TwAddVarRW(g_pDUC->g_pTweakBar, "Time Factor", TW_TYPE_FLOAT, &g_fTimeFactor, "step=0.01   min=0.01");
 #endif
+#else
+	duc->g_pTweakBar = TwNewBar("TweakBar");
+	auto tw_str = g_pSimulator ? g_pSimulator->getTestCasesStr() : "Path Tracer";
+	TwDefine(" TweakBar color='0 128 128' alpha=128 ");
+	TwType TW_TYPE_TESTCASE = TwDefineEnumFromString("Scene", tw_str);
+	TwAddVarRW(duc->g_pTweakBar, "Scene", TW_TYPE_TESTCASE, &g_iTestCase, "");
+#endif
 }
-
 
 // ============================================================
 // DXUT Callbacks
@@ -103,18 +115,18 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	
 	HRESULT hr;
     ID3D11DeviceContext* pd3dImmediateContext = DXUTGetD3D11DeviceContext();
-	g_pDUC->init(pd3dDevice,pd3dImmediateContext);
+	duc->init(pd3dDevice,pd3dImmediateContext);
     std::wcout << L"Device: " << DXUTGetDeviceStats() << std::endl;
     // Load custom effect from "effect.fxo" (compiled "effect.fx")
 	std::wstring effectPath = GetExePath() + L"effect.fxo";
-	if(FAILED(hr = D3DX11CreateEffectFromFile(effectPath.c_str(), 0, pd3dDevice, &(g_pDUC->g_pEffect))))
+	if(FAILED(hr = D3DX11CreateEffectFromFile(effectPath.c_str(), 0, pd3dDevice, &(duc->g_pEffect))))
 	{
         std::wcout << L"Failed creating effect with error code " << int(hr) << std::endl;
 		return hr;
 	}
     // Init AntTweakBar GUI
 	TwInit(TW_DIRECT3D11, pd3dDevice);
-	g_pDUC->g_pTweakBar = TwNewBar("TweakBar");
+	duc->g_pTweakBar = TwNewBar("TweakBar");
 	return S_OK;
 }
 
@@ -123,7 +135,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 //--------------------------------------------------------------------------------------
 void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 {
-	g_pDUC->destroy();
+	duc->destroy();
 }
 
 //--------------------------------------------------------------------------------------
@@ -132,7 +144,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapChain* pSwapChain,
                                           const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc, void* pUserContext )
 {
-	g_pDUC->updateScreenSize(pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height);
+	duc->updateScreenSize(pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height);
 	return S_OK;
 }
 
@@ -197,8 +209,8 @@ void CALLBACK OnKeyboard( UINT nChar, bool bKeyDown, bool bAltDown, void* pUserC
 //--------------------------------------------------------------------------------------
 void CALLBACK OnMouse( bool bLeftButtonDown, bool bRightButtonDown, bool bMiddleButtonDown,
                        bool bSideButton1Down, bool bSideButton2Down, int nMouseWheelDelta,
-                       int xPos, int yPos, void* pUserContext )
-{
+                       int xPos, int yPos, void* pUserContext ) {
+#ifndef EXPERIMENTAL
 	if (bLeftButtonDown)
 	{
 		g_pSimulator->onClick(xPos,yPos);
@@ -207,6 +219,7 @@ void CALLBACK OnMouse( bool bLeftButtonDown, bool bRightButtonDown, bool bMiddle
 	{
 		g_pSimulator->onMouse(xPos, yPos);
 	}
+#endif
 }
 
 
@@ -224,7 +237,7 @@ LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
     }
 
     // If message not processed yet, send to camera
-	if(g_pDUC->g_camera.HandleMessages(hWnd,uMsg,wParam,lParam))
+	if(duc->g_camera.HandleMessages(hWnd,uMsg,wParam,lParam))
     {
         *pbNoFurtherProcessing = true;
 		return 0;
@@ -240,29 +253,28 @@ LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 void CALLBACK OnFrameMove( double dTime, float fElapsedTime, void* pUserContext )
 {
 	UpdateWindowTitle(L"Demo");
-	g_pDUC->update(fElapsedTime);
-	if (g_iPreTestCase != g_iTestCase){// test case changed
+	duc->update(fElapsedTime);
+	if(g_iPreTestCase != g_iTestCase) {// test case changed
 		// clear old setup and build up new setup
-		if(g_pDUC->g_pTweakBar != nullptr) {
-			TwDeleteBar(g_pDUC->g_pTweakBar);
-			g_pDUC->g_pTweakBar = nullptr;
+		if(duc->g_pTweakBar != nullptr) {
+			TwDeleteBar(duc->g_pTweakBar);
+			duc->g_pTweakBar = nullptr;
 		}
 		initTweakBar();
+#ifndef EXPERIMENTAL
 		g_pSimulator->notifyCaseChanged(g_iTestCase);
 		g_pSimulator->initUI(g_pDUC);
 
 		g_iPreTestCase = g_iTestCase;
 	}
-	if(!g_bSimulateByStep){
+	if(!g_bSimulateByStep) {
 #ifdef ADAPTIVESTEP
 		g_pSimulator->externalForcesCalculations(fElapsedTime);
 		static float timeAcc = 0;
 		timeAcc += fElapsedTime * g_fTimeFactor;
 		int maxIter = 10;
-		while (timeAcc > g_fTimestep)
-		{
-			if (maxIter > 0)
-			{
+		while(timeAcc > g_fTimestep) {
+			if(maxIter > 0) {
 				g_pSimulator->simulateTimestep(g_fTimestep);
 				maxIter--;
 			}
@@ -272,19 +284,35 @@ void CALLBACK OnFrameMove( double dTime, float fElapsedTime, void* pUserContext 
 		g_pSimulator->externalForcesCalculations(g_fTimestep);
 		g_pSimulator->simulateTimestep(g_fTimestep);
 #endif
-	}else{
+	} else {
 		if(DXUTIsKeyDown(VK_SPACE))
 			g_pSimulator->simulateTimestep(g_fTimestep);
-		if(DXUTIsKeyDown('S') && firstTime)
-		{
+		if(DXUTIsKeyDown('S') && firstTime) {
 			g_pSimulator->simulateTimestep(g_fTimestep);
 			firstTime = false;
-		}else{
-			if(!DXUTIsKeyDown('S')) 
+		} else {
+			if(!DXUTIsKeyDown('S'))
 				firstTime = true;
 		}
 	}
+#else 
+		path_tracer->update();
+	}
+#endif
 }
+
+void draw_template_scene(DrawingUtilitiesClass* duc, bool draw, ID3D11DeviceContext* context){
+	// Draw floor
+	duc->DrawFloor(context);
+
+	// Draw axis box
+	duc->DrawBoundingBox(context);
+
+	// Draw Simulator
+	if(draw)g_pSimulator->drawFrame(context);
+
+}
+
 
 //--------------------------------------------------------------------------------------
 // Render the scene using the D3D11 device
@@ -302,17 +330,16 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->ClearRenderTargetView( pRTV, ClearColor );
 	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0f, 0 );
 
-    // Draw floor
-    g_pDUC->DrawFloor(pd3dImmediateContext);
-
-    // Draw axis box
-     g_pDUC->DrawBoundingBox(pd3dImmediateContext);
-
-	// Draw Simulator
-	if(g_bDraw)g_pSimulator->drawFrame(pd3dImmediateContext);
+#if false
+	draw_template_scene(g_pDUC, g_bDraw, pd3dImmediateContext)
+#endif
+	path_tracer->render();
+	D3D11_VIEWPORT viewport = { 0, 0, res_x, res_y, 0, 1 };
+	pd3dImmediateContext->RSSetViewports(1, &viewport);
+	path_tracer->present();
 
 	// Draw GUI
-    TwDraw();
+    //TwDraw();
 
     if (g_pFFmpegVideoRecorder) 
     {
@@ -323,8 +350,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 //--------------------------------------------------------------------------------------
 // Initialize everything and go into a render loop
 //--------------------------------------------------------------------------------------
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
 #if defined(DEBUG) | defined(_DEBUG)
 	// Enable run-time memory check for debug builds.
 	// (on program exit, memory leaks are printed to Visual Studio's Output console)
@@ -351,12 +377,13 @@ int main(int argc, char* argv[])
 	DXUTSetCallbackD3D11SwapChainReleasing( OnD3D11ReleasingSwapChain );
 	DXUTSetCallbackD3D11DeviceDestroyed( OnD3D11DestroyDevice );
 	// Init Drawing Class
-	g_pDUC = new DrawingUtilitiesClass();
+	duc = new DrawingUtilitiesClass();
+
     // Init camera
  	XMFLOAT3 eye(0.0f, 0.4f, 8.0f);
 	XMFLOAT3 lookAt(0.0f, 0.0f, 0.0f);
-	g_pDUC->g_camera.SetViewParams(XMLoadFloat3(&eye), XMLoadFloat3(&lookAt));
-	g_pDUC-> g_camera.SetButtonMasks(MOUSE_MIDDLE_BUTTON, MOUSE_WHEEL, MOUSE_RIGHT_BUTTON);
+	duc->g_camera.SetViewParams(XMLoadFloat3(&eye), XMLoadFloat3(&lookAt));
+	duc-> g_camera.SetButtonMasks(MOUSE_MIDDLE_BUTTON, MOUSE_WHEEL, MOUSE_RIGHT_BUTTON);
 
 
 #ifdef TEMPLATE_DEMO
@@ -372,17 +399,28 @@ int main(int argc, char* argv[])
 #ifdef SPH_SYSTEM
 	//g_pSimulator= new SPHSystemSimulator();
 #endif
-	g_pSimulator->reset();
+	if(g_pSimulator) {
+		g_pSimulator->reset();
+	}
 
     // Init DXUT and create device
 	DXUTInit( true, true, NULL ); // Parse the command line, show msgboxes on error, no extra command line params
 	//DXUTSetIsInGammaCorrectMode( false ); // true by default (SRGB backbuffer), disable to force a RGB backbuffer
 	DXUTSetCursorSettings( true, true ); // Show the cursor and clip it when in full screen
 	DXUTCreateWindow( L"Demo" );
-	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, 1280, 960 );
+	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, res_x, res_y);
+
+#ifdef MASS_SPRING_SYSTEM
 	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(g_pDUC->g_ppd3Device);
+#endif
+	path_tracer = std::make_unique<PathTracer>(duc->g_ppd3Device, duc->g_pd3dImmediateContext,
+											   &duc->g_camera);
+	path_tracer->init();
 	DXUTMainLoop(); // Enter into the DXUT render loop
-	delete g_pSimulator;
+	if(g_pSimulator) {
+		delete g_pSimulator;
+	}
+	path_tracer.reset();
 	DXUTShutdown(); // Shuts down DXUT (includes calls to OnD3D11ReleasingSwapChain() and OnD3D11DestroyDevice())
 	return DXUTGetExitCode();
 }

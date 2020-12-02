@@ -30,7 +30,9 @@ HRESULT create_srv(ID3D11Device* device,
 HRESULT create_uav(ID3D11Device* device,
                    ID3D11Buffer* buffer,
                    ID3D11UnorderedAccessView** uav_ptr);
-HRESULT create_sampler(ID3D11Device* device, ID3D11SamplerState** sampler_state_ptr);
+HRESULT create_sampler(ID3D11Device* device, ID3D11SamplerState** sampler_state_ptr,
+                       D3D11_FILTER filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+                       D3D11_TEXTURE_ADDRESS_MODE mode = D3D11_TEXTURE_ADDRESS_WRAP);
 
 
 std::wstring GetExePath();

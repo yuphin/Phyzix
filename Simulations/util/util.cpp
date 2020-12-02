@@ -170,9 +170,10 @@ HRESULT create_uav(ID3D11Device* device,
     return device->CreateUnorderedAccessView(buffer, &desc, uav_ptr);
 }
 
-HRESULT create_sampler(ID3D11Device* device, ID3D11SamplerState** sampler_state_ptr) {
+HRESULT create_sampler(ID3D11Device* device, ID3D11SamplerState** sampler_state_ptr, 
+                       D3D11_FILTER filter,D3D11_TEXTURE_ADDRESS_MODE mode) {
     D3D11_SAMPLER_DESC desc = {};
-    desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    desc.Filter = filter;
     desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
     desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
     desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;

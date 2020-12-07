@@ -23,7 +23,7 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 	for (auto& rb : rigid_bodies) {
 		rb.position += time_step * rb.linear_velocity;
 		rb.linear_velocity += time_step * rb.force * rb.inv_mass;
-		auto ang_vel = Quat{ rb.angular_vel.x, rb.angular_vel.y, rb.angular_vel.z, 0 };
+		auto ang_vel = Quat(rb.angular_vel.x, rb.angular_vel.y, rb.angular_vel.z, 0);
 		rb.orientation += time_step * 0.5f * ang_vel * rb.orientation;
 		rb.orientation = rb.orientation.unit();
 		rb.angular_momentum += time_step * rb.torque;

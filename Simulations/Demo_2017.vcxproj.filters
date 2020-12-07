@@ -10,16 +10,19 @@
     <FxCompile Include="effect.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="output.hlsl">
+    <FxCompile Include="path_trace.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="path_trace.hlsl">
+    <FxCompile Include="update.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="output.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="tile_output.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="update.hlsl">
+    <FxCompile Include="quad.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

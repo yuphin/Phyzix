@@ -16,6 +16,7 @@
 #include "util/FFmpeg.h"
 
 #include "Scene.h"
+#include "Loader.h"
 using namespace DirectX;
 using namespace GamePhysics;
 
@@ -53,8 +54,8 @@ int g_iTestCase = 0;
 int g_iPreTestCase = -1;
 bool  g_bSimulateByStep = false;
 bool firstTime = true;
-int res_x = 1200;
-int res_y = 700;
+int res_x = 800;
+int res_y = 800;
 // Video recorder
 FFmpeg* g_pFFmpegVideoRecorder = nullptr;
 std::unique_ptr<PathTracer> path_tracer = nullptr;
@@ -105,6 +106,9 @@ bool CALLBACK IsD3D11DeviceAcceptable( const CD3D11EnumAdapterInfo *AdapterInfo,
 //--------------------------------------------------------------------------------------
 bool CALLBACK ModifyDeviceSettings( DXUTDeviceSettings* pDeviceSettings, void* pUserContext )
 {
+#if defined(DEBUG) | defined(_DEBUG)
+	pDeviceSettings->d3d11.CreateFlags = D3D11_CREATE_DEVICE_DEBUG;
+#endif
 	return true;
 }
 
@@ -325,7 +329,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
     HRESULT hr;
 
 	// Clear render target and depth stencil
-	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	ID3D11RenderTargetView* pRTV = DXUTGetD3D11RenderTargetView();
 	ID3D11DepthStencilView* pDSV = DXUTGetD3D11DepthStencilView();
@@ -349,14 +353,20 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
     }
 }
 
+void load_scene_file(const std::string& file_name, Scene* scene) {
+	load_scene(file_name, scene, nullptr);
+}
+
 //--------------------------------------------------------------------------------------
 // Initialize everything and go into a render loop
 //--------------------------------------------------------------------------------------
 int main(int argc, char* argv[]) {
+	srand(time(NULL));
 #if defined(DEBUG) | defined(_DEBUG)
 	// Enable run-time memory check for debug builds.
 	// (on program exit, memory leaks are printed to Visual Studio's Output console)
 	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
+	
 #endif
 
 #ifdef _DEBUG
@@ -414,6 +424,9 @@ int main(int argc, char* argv[]) {
 #ifdef MASS_SPRING_SYSTEM
 	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(duc->g_ppd3Device);
 #endif
+	scene = std::make_unique<Scene>();
+	const std::string file_name("assets/cornell_box.txt");
+	load_scene_file(file_name, scene.get());
 	path_tracer = std::make_unique<PathTracer>(duc->g_ppd3Device, duc->g_pd3dImmediateContext,
 											   &duc->g_camera, scene.get());
 	path_tracer->init();

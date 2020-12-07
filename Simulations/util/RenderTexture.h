@@ -13,11 +13,11 @@ public:
 	bool init(ID3D11Device* device, int width, int height,
 			  bool is_render_texture = true, 
 			  DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT,
-			  const void* data = nullptr,
+			  void* data = nullptr,
 			  UINT row_pitch = 0,
 			  ID3D11DeviceContext* context = nullptr,
 			  D3D11_USAGE usage = D3D11_USAGE_DEFAULT, 
-			  UINT bind_flags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+			  UINT bind_flags =D3D11_BIND_SHADER_RESOURCE);
 	void shutdown();
 
 	void set_render_target(ID3D11DeviceContext*, ID3D11DepthStencilView*);

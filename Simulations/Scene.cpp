@@ -46,37 +46,37 @@ void Scene::create_tlas() {
 	std::vector<RadeonRays::bbox> bounds;
 	bounds.resize(mesh_instances.size());
 
-//#pragma omp parallel for
-//	for(int i = 0; i < mesh_instances.size(); i++) {
-//		RadeonRays::bbox bbox = meshes[mesh_instances[i].mesh_id]->bvh->Bounds();
-//		Mat4f matrix = mesh_instances[i].transform;
-//
-//		Vec3f minBound = bbox.pmin;
-//		Vec3f maxBound = bbox.pmax;
-//
-//		Vec3f right = Vec3f(matrix[0][0], matrix[0][1], matrix[0][2]);
-//		Vec3f up = Vec3f(matrix[1][0], matrix[1][1], matrix[1][2]);
-//		Vec3f forward = Vec3f(matrix[2][0], matrix[2][1], matrix[2][2]);
-//		Vec3f translation = Vec3f(matrix[3][0], matrix[3][1], matrix[3][2]);
-//
-//		Vec3f xa = right * minBound.x;
-//		Vec3f xb = right * maxBound.x;
-//
-//		Vec3f ya = up * minBound.y;
-//		Vec3f yb = up * maxBound.y;
-//
-//		Vec3f za = forward * minBound.z;
-//		Vec3f zb = forward * maxBound.z;
-//
-//		minBound = Vec3f_min(xa, xb) + Vec3f_min(ya, yb) + Vec3f_min(za, zb) + translation;
-//		maxBound = Vec3f_max(xa, xb) + Vec3f_max(ya, yb) + Vec3f_max(za, zb) + translation;
-//
-//		RadeonRays::bbox bound;
-//		bound.pmin = minBound;
-//		bound.pmax = maxBound;
-//
-//		bounds[i] = bound;
-//	}
+#pragma omp parallel for
+	for(int i = 0; i < mesh_instances.size(); i++) {
+		RadeonRays::bbox bbox = meshes[mesh_instances[i].mesh_id]->bvh->Bounds();
+		Mat4f matrix = mesh_instances[i].transform;
+
+		Vec3f minBound = bbox.pmin;
+		Vec3f maxBound = bbox.pmax;
+
+		Vec3f right = Vec3f(matrix.value[0][0], matrix.value[0][1], matrix.value[0][2]);
+		Vec3f up = Vec3f(matrix.value[1][0], matrix.value[1][1], matrix.value[1][2]);
+		Vec3f forward = Vec3f(matrix.value[2][0], matrix.value[2][1], matrix.value[2][2]);
+		Vec3f translation = Vec3f(matrix.value[3][0], matrix.value[3][1], matrix.value[3][2]);
+
+		Vec3f xa = right * minBound.x;
+		Vec3f xb = right * maxBound.x;
+
+		Vec3f ya = up * minBound.y;
+		Vec3f yb = up * maxBound.y;
+
+		Vec3f za = forward * minBound.z;
+		Vec3f zb = forward * maxBound.z;
+
+		minBound = Vec3f_min(xa, xb) + Vec3f_min(ya, yb) + Vec3f_min(za, zb) + translation;
+		maxBound = Vec3f_max(xa, xb) + Vec3f_max(ya, yb) + Vec3f_max(za, zb) + translation;
+
+		RadeonRays::bbox bound;
+		bound.pmin = minBound;
+		bound.pmax = maxBound;
+
+		bounds[i] = bound;
+	}
 	scene_bvh->Build(&bounds[0], bounds.size());
 	sceneBounds = scene_bvh->Bounds();
 }

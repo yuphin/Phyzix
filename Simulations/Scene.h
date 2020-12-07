@@ -9,6 +9,7 @@
 #include "Material.h"
 #include "Mesh.h"
 #include "util/vector4d.h"
+#include "Options.h"
 // Note : Scene system adapted from https://github.com/knightcrawler25/GLSL-PathTracer
 // Including meshes, loading etc.
 //using Vec3f = vector3Dim<Real>;
@@ -45,16 +46,14 @@ public:
     void create_acceleration_structures();
     void rebuild();
 
-    //Options
-    //RenderOptions renderOptions;
+    Options options;
 
-    //Meshs
+    //Meshes
     std::vector<Mesh*> meshes;
-    matrix4x4<float> asda;
     // Scene Mesh Data 
     std::vector<Indices>   vert_indices;
-    std::vector<Vec4> vertices_uvx; // Vertex Data + x coord of uv 
-    std::vector<Vec4> normals_uvy;  // Normal Data + y coord of uv
+    std::vector<nVec4f> vertices_uvx; // Vertex Data + x coord of uv 
+    std::vector<nVec4f> normals_uvy;  // Normal Data + y coord of uv
     std::vector<matrix4x4<float>> transforms;
     int indices_tex_width;
     int vert_tex_width;

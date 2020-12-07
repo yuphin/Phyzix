@@ -43,8 +43,8 @@ bool Mesh::load(const std::string& filename) {
 				} else {
 					tx = ty = 0;
 				}
-				vert_uvx.push_back(Vec4(vx, vy, vz, tx));
-				normals_uvy.push_back(Vec4(nx, ny, nz, ty));
+				vert_uvx.push_back(nVec4f(vx, vy, vz, tx));
+				normals_uvy.push_back(nVec4f(nx, ny, nz, ty));
 			}
 
 			index_offset += fv;

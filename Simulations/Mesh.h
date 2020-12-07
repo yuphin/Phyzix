@@ -11,8 +11,8 @@ public:
     void build_bvh();
     bool load(const std::string& filename);
 
-    std::vector<Vec4> vert_uvx; // Vertex Data + x coord of uv 
-    std::vector<Vec4> normals_uvy;  // Normal Data + y coord of uv
+    std::vector<nVec4f> vert_uvx; // Vertex Data + x coord of uv 
+    std::vector<nVec4f> normals_uvy;  // Normal Data + y coord of uv
 
     std::unique_ptr<RadeonRays::Bvh> bvh = nullptr;
     std::string name;

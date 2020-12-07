@@ -177,5 +177,7 @@ HRESULT create_sampler(ID3D11Device* device, ID3D11SamplerState** sampler_state_
     desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
     desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
     desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    desc.MinLOD = -1000;
+    desc.MaxLOD = 1000;
     return device->CreateSamplerState(&desc, sampler_state_ptr);
 }

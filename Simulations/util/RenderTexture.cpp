@@ -1,5 +1,5 @@
 #include "RenderTexture.h"
-
+#include <stdio.h>
 Texture::Texture() {
 	tex = 0;
 	render_target_view = 0;
@@ -12,11 +12,11 @@ Texture::~Texture() {}
 
 bool Texture::init(ID3D11Device* device, int width, int height,
 				   bool is_render_texture, DXGI_FORMAT format,
-				   const void* data,
+				   void* data,
 				   UINT row_pitch,
 				   ID3D11DeviceContext* context,
 				   D3D11_USAGE usage, UINT bind_flags) {
-	D3D11_TEXTURE2D_DESC texture_desc;
+	D3D11_TEXTURE2D_DESC texture_desc = {};
 	HRESULT result;
 	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
 	D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc;
@@ -30,18 +30,60 @@ bool Texture::init(ID3D11Device* device, int width, int height,
 	texture_desc.Height = height;
 	texture_desc.MipLevels = 1;
 	texture_desc.ArraySize = 1;
-	texture_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	texture_desc.Format = format;
 	texture_desc.SampleDesc.Count = 1;
+	texture_desc.SampleDesc.Quality = 0;
 	texture_desc.Usage = D3D11_USAGE_DEFAULT;
-	texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	texture_desc.BindFlags = is_render_texture ? bind_flags | D3D11_BIND_RENDER_TARGET
+		: bind_flags;
 	texture_desc.CPUAccessFlags = 0;
 	texture_desc.MiscFlags = 0;
 
 	// Create the render target texture.
-	result = device->CreateTexture2D(&texture_desc, NULL, &tex);
-	if(FAILED(result)) {
-		return false;
+	ID3D11Texture2D* staging_tex;
+	if(data) {
+		D3D11_TEXTURE2D_DESC staging_desc = {};
+		staging_desc.Width = width;
+		staging_desc.Height = height;
+		staging_desc.MipLevels = 1;
+		staging_desc.ArraySize = 1;
+		staging_desc.Format = format;
+		staging_desc.SampleDesc.Count = 1;
+		staging_desc.Usage = D3D11_USAGE_STAGING;
+		staging_desc.BindFlags = 0;
+		staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		staging_desc.MiscFlags = 0;
+		result = device->CreateTexture2D(&staging_desc, NULL, &staging_tex);
+		//context->UpdateSubresource(tex, 0, nullptr, data, row_pitch, 0);
+		if(FAILED(result)) {
+			printf("Failed to create a staging texture\n");
+			return false;
+		}
+		D3D11_MAPPED_SUBRESOURCE mapped_resource;
+		ZeroMemory(&mapped_resource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+		context->Map(staging_tex, 0, D3D11_MAP_WRITE, 0, &mapped_resource);
+		BYTE* mapped_data = reinterpret_cast<BYTE*>(mapped_resource.pData);
+		for(int i = 0; i < height; i++) {
+			memcpy(mapped_data, data, row_pitch);
+			mapped_data += mapped_resource.RowPitch;
+			data = (char*) data + row_pitch;
+		}
+		context->Unmap(staging_tex, 0);
+		result = device->CreateTexture2D(&texture_desc, NULL, &tex);
+		if(FAILED(result)) {
+			printf("Failed to create texture\n");
+			return false;
+		}
+		context->CopyResource(tex, staging_tex);
+		staging_tex->Release();
+	} else {
+		result = device->CreateTexture2D(&texture_desc, NULL, &tex);
+		if(FAILED(result)) {
+			printf("Failed to create texture\n");
+			return false;
+		}
 	}
+
 	if(is_render_texture) {
 		// Setup the description of the render target view.
 		renderTargetViewDesc.Format = texture_desc.Format;
@@ -53,11 +95,7 @@ bool Texture::init(ID3D11Device* device, int width, int height,
 		if(FAILED(result)) {
 			return false;
 		}
-	}
-	if(!data) {
-		context->UpdateSubresource(tex, 0, nullptr, data, row_pitch, 0);
-	}
-
+	} 
 	// Setup the description of the shader resource view.
 	srv_desc.Format = texture_desc.Format;
 	srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -69,7 +107,7 @@ bool Texture::init(ID3D11Device* device, int width, int height,
 	if(FAILED(result)) {
 		return false;
 	}
-
+	//
 	return true;
 }
 

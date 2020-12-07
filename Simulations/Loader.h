@@ -8,5 +8,5 @@
 #include "Scene.h"
 #include "Options.h"
 class Scene;
-bool load_scene(const std::string& filename, Scene* scene, const Options& renderOptions);
+bool load_scene(const std::string& filename, Scene* scene, Options* render_opts);
 

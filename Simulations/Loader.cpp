@@ -14,7 +14,7 @@
 static const int k_max_line_len = 2048;
 int(*Log)(const char* szFormat, ...) = printf;
 
-bool load_scene(const std::string& filename, Scene* scene, const Options& render_options) {
+bool load_scene(const std::string& filename, Scene* scene, Options* render_options) {
 	FILE* file;
 	file = fopen(filename.c_str(), "r");
 
@@ -173,13 +173,12 @@ bool load_scene(const std::string& filename, Scene* scene, const Options& render
 				// end group
 				if(strchr(line, '}'))
 					break;
-
 				sscanf(line, " envMap %s", envMap);
-				sscanf(line, " resolution %d %d", &render_options.resolution.x, &render_options.resolution.y);
+				sscanf(line, " resolution %d %d", &scene->options.resolution.x, &scene->options.resolution.y);
 				//sscanf(line, " hdrMultiplier %f", &render_options.hdrMultiplier);
-				sscanf(line, " maxDepth %i", &render_options.max_depth);
-				sscanf(line, " tileWidth %i", &render_options.tile_width);
-				sscanf(line, " tileHeight %i", &render_options.tile_height);
+				sscanf(line, " maxDepth %i", &scene->options.max_depth);
+				sscanf(line, " tileWidth %i", &scene->options.tile_width);
+				sscanf(line, " tileHeight %i", &scene->options.tile_height);
 			}
 
 		/*	if(strcmp(envMap, "None") != 0) {

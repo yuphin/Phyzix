@@ -55,7 +55,7 @@ namespace RadeonRays
 
         bbox(Vec3f const& p1, Vec3f const& p2)
             : pmin(Vec3f_min(p1, p2))
-            , pmax(Vec3f_min(p1, p2))
+            , pmax(Vec3f_max(p1, p2))
         { }
 
 		Vec3f center()  const;

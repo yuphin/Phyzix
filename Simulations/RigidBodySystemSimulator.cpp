@@ -9,13 +9,35 @@ const char* RigidBodySystemSimulator::getTestCasesStr()
 	return "Demo 1, Demo 2, Demo 3, Demo 4";
 }
 
-void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {}
+void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
+	this->DUC = DUC;
+}
 
 void RigidBodySystemSimulator::reset() {}
 
-void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {}
+void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
+	DUC->setUpLighting(Vec3(0, 0, 0), 0.4 * Vec3(1, 1, 1), 2000.0, Vec3(0.5, 0.5, 0.5));
+	for (int i = 0; i < rigid_bodies.size(); i++) {
+		DUC->drawRigidBody(rigid_bodies[i].obj_to_world().toDirectXMatrix());
+	}
+}
 
-void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {}
+void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
+	m_iTestCase = testCase;
+	rigid_bodies.clear();
+	switch (testCase) {
+	case 0:
+		break;
+	case 1:
+		addRigidBody({ 0, 0, 0 }, { 1, 1, 1 }, 10);
+		applyForceOnBody(0, { 0.0, 0.5, 0.5 }, { 1,1,0 });
+		add_torque(0, { 5000, 5000, 5000 });
+		break;
+	default:
+		break;
+	}
+
+}
 
 void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {}
 
@@ -75,5 +97,14 @@ void RigidBodySystemSimulator::setOrientationOf(int i, Quat orientation) {
 
 void RigidBodySystemSimulator::setVelocityOf(int i, Vec3 velocity) {
 	rigid_bodies[i].linear_velocity = velocity;
+}
+
+void RigidBodySystemSimulator::add_torque(int i, Vec3 ang_accelaration) {
+	auto rot = rigid_bodies[i].orientation.getRotMat();
+	auto rot_transpose = rigid_bodies[i].orientation.getRotMat();
+	rot_transpose.transpose();
+	auto inertia_0 = rigid_bodies[i].inv_inertia_0.inverse();
+	auto inertia = rot * inertia_0 * rot_transpose;
+	rigid_bodies[i].torque = inertia * ang_accelaration;
 }
 

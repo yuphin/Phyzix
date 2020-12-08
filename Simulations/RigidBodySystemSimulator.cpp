@@ -49,10 +49,7 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 		rb.orientation += time_step * 0.5f * ang_vel * rb.orientation;
 		rb.orientation = rb.orientation.unit();
 		rb.angular_momentum += time_step * rb.torque;
-		auto rot = rb.orientation.getRotMat();
-		auto rot_transpose = rb.orientation.getRotMat();
-		rot_transpose.transpose();
-		auto inv_inertia = rot * rb.inv_inertia_0 * rot_transpose;
+		auto inv_inertia = rb.get_transformed_inertia(rb.inv_inertia_0);
 		rb.angular_vel = inv_inertia * rb.angular_momentum;
 	}
 	// Clear forces & torques
@@ -100,11 +97,10 @@ void RigidBodySystemSimulator::setVelocityOf(int i, Vec3 velocity) {
 }
 
 void RigidBodySystemSimulator::add_torque(int i, Vec3 ang_accelaration) {
-	auto rot = rigid_bodies[i].orientation.getRotMat();
-	auto rot_transpose = rigid_bodies[i].orientation.getRotMat();
-	rot_transpose.transpose();
-	auto inertia_0 = rigid_bodies[i].inv_inertia_0.inverse();
-	auto inertia = rot * inertia_0 * rot_transpose;
+
+	auto inertia = rigid_bodies[i].get_transformed_inertia(
+		rigid_bodies[i].inv_inertia_0.inverse()
+	);
 	rigid_bodies[i].torque = inertia * ang_accelaration;
 }
 

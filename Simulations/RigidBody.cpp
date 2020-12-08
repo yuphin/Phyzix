@@ -13,6 +13,13 @@ Mat4 RigidBody::obj_to_world()
 	return scale * rot * trans;
 }
 
+Mat4 RigidBody::get_transformed_inertia(const Mat4& inertia) {
+	auto rot = orientation.getRotMat();
+	auto rot_transpose = orientation.getRotMat();
+	rot_transpose.transpose();
+	return rot * inertia * rot_transpose;
+}
+
 void RigidBody::calc_inv_inertia_tensor() {
 	switch (type) {
 	case RigidBodyType::CUBOID:

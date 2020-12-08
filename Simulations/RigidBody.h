@@ -17,6 +17,9 @@ public:
 		inv_mass = 1.0f / mass;
 		calc_inv_inertia_tensor();
 	}
+	Mat4 obj_to_world();
+	Mat4 get_transformed_inertia(const Mat4& inertia);
+
 	Vec3 position;
 	Vec3 size;
 	Vec3 linear_velocity;

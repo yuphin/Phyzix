@@ -37,6 +37,7 @@ public:
 	void setOrientationOf(int i, Quat orientation);
 	void setVelocityOf(int i, Vec3 velocity);
 	void handleCollisions();
+	void add_torque(int i, Vec3 ang_velocity);
 
 private:
 	// Attributes
@@ -50,5 +51,6 @@ private:
 	Point2D m_trackmouse;
 	Point2D m_oldtrackmouse;
 	std::vector<RigidBody> rigid_bodies;
+	DrawingUtilitiesClass* DUC;
 };
 #endif

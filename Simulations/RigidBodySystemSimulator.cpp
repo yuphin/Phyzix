@@ -9,13 +9,34 @@ const char* RigidBodySystemSimulator::getTestCasesStr()
 	return "Demo 1, Demo 2, Demo 3, Demo 4";
 }
 
-void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {}
+void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
+	this->DUC = DUC;
+}
 
 void RigidBodySystemSimulator::reset() {}
 
-void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {}
+void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
+	DUC->setUpLighting(Vec3(0, 0, 0), 0.4 * Vec3(1, 1, 1), 2000.0, Vec3(0.5, 0.5, 0.5));
+	for (int i = 0; i < rigid_bodies.size(); i++) {
+		DUC->drawRigidBody(rigid_bodies[i].obj_to_world().toDirectXMatrix());
+	}
+}
 
-void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {}
+void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
+	m_iTestCase = testCase;
+	rigid_bodies.clear();
+	switch (testCase) {
+	case 0:
+		break;
+	case 1:
+		addRigidBody({ 0, 0, 0 }, { 1, 1, 1 }, 10);
+		applyForceOnBody(0, { 0.0, 0.5, 0.5 }, { 1,1,0 });
+		add_torque(0, { 5000, 5000, 5000 });
+		break;
+	default:
+		break;
+	}
+}
 
 void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {}
 
@@ -72,10 +93,7 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 		rb.orientation += time_step * 0.5f * ang_vel * rb.orientation;
 		rb.orientation = rb.orientation.unit();
 		rb.angular_momentum += time_step * rb.torque;
-		auto rot = rb.orientation.getRotMat();
-		auto rot_transpose = rb.orientation.getRotMat();
-		rot_transpose.transpose();
-		auto inv_inertia = rot * rb.inv_inertia_0 * rot_transpose;
+		auto inv_inertia = rb.get_transformed_inertia(rb.inv_inertia_0);
 		rb.angular_vel = inv_inertia * rb.angular_momentum;
 	}
 	// Clear forces & torques
@@ -120,5 +138,13 @@ void RigidBodySystemSimulator::setOrientationOf(int i, Quat orientation) {
 
 void RigidBodySystemSimulator::setVelocityOf(int i, Vec3 velocity) {
 	rigid_bodies[i].linear_velocity = velocity;
+}
+
+void RigidBodySystemSimulator::add_torque(int i, Vec3 ang_accelaration) {
+
+	auto inertia = rigid_bodies[i].get_transformed_inertia(
+		rigid_bodies[i].inv_inertia_0.inverse()
+	);
+	rigid_bodies[i].torque += inertia * ang_accelaration;
 }
 

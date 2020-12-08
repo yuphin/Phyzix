@@ -36,7 +36,6 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 	default:
 		break;
 	}
-
 }
 
 void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {}
@@ -101,6 +100,6 @@ void RigidBodySystemSimulator::add_torque(int i, Vec3 ang_accelaration) {
 	auto inertia = rigid_bodies[i].get_transformed_inertia(
 		rigid_bodies[i].inv_inertia_0.inverse()
 	);
-	rigid_bodies[i].torque = inertia * ang_accelaration;
+	rigid_bodies[i].torque += inertia * ang_accelaration;
 }
 

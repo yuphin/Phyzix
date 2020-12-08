@@ -19,3 +19,11 @@ void RigidBody::calc_inv_inertia_tensor() {
 		break;
 	}
 }
+
+Mat4 RigidBody::get_world_matrix() {
+	auto rotation = XMMatrixRotationQuaternion(orientation.toDirectXQuat());
+	auto scale = XMMatrixScaling(size.x, size.y, size.z);
+	auto translation = XMMatrixTranslation(position.x, position.y, position.z);
+
+	return Mat4(scale * rotation * translation);
+}

@@ -3,6 +3,7 @@
 #include "Simulator.h"
 #include "RigidBody.h"
 #include "util/util.h"
+#include "collisionDetect.h"
 //add your header for your rigid body system, for e.g.,
 //#include "rigidBodySystem.h" 
 
@@ -35,12 +36,14 @@ public:
 	void addRigidBody(Vec3 position, Vec3 size, int mass);
 	void setOrientationOf(int i, Quat orientation);
 	void setVelocityOf(int i, Vec3 velocity);
+	void handleCollisions();
 
 private:
 	// Attributes
 	// add your RigidBodySystem data members, for e.g.,
 	// RigidBodySystem * m_pRigidBodySystem; 
 	Vec3 m_externalForce;
+	double bounciness;
 	
 	// UI Attributes
 	Point2D m_mouse;

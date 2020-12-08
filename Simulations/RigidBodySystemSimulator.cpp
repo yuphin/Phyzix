@@ -19,7 +19,52 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {}
 
 void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {}
 
+void RigidBodySystemSimulator::handleCollisions() {
+	if (rigid_bodies.size() < 2) {
+		return;
+	}
+
+	for (int i = 0; i < rigid_bodies.size(); i++) {
+		RigidBody& b1 = rigid_bodies[i];
+
+		for (int j = i + 1; i < rigid_bodies.size(); j++) {
+			RigidBody& b2 = rigid_bodies[j];
+
+			auto collision_info = checkCollisionSAT(b1.get_world_matrix(), b2.get_world_matrix());
+
+			if (collision_info.isValid) {
+				auto b1_collision_pos = collision_info.collisionPointWorld - b1.position;
+				auto b2_collision_pos = collision_info.collisionPointWorld - b2.position;
+
+				auto b1_collision_vel = b1.linear_velocity + cross(b1.angular_vel, b1_collision_pos);
+				auto b2_collision_vel = b2.linear_velocity + cross(b2.angular_vel, b2_collision_pos);
+
+				auto normal_dot_relative_vel = dot(collision_info.normalWorld, b1_collision_vel - b2_collision_vel);
+
+				if (normal_dot_relative_vel < 0) {
+					auto numerator = -(1 + bounciness) * normal_dot_relative_vel;
+					auto denominator = b1.inv_mass + b2.inv_mass
+						+ dot(
+							cross(b1.inv_inertia_0 * cross(b1_collision_pos, collision_info.normalWorld), b1_collision_pos) + 
+							cross(b2.inv_inertia_0 * cross(b2_collision_pos, collision_info.normalWorld), b2_collision_pos),
+							collision_info.normalWorld);
+
+					auto impulse = numerator / denominator;
+
+					b1.linear_velocity += impulse * collision_info.normalWorld * b1.inv_mass;
+					b2.linear_velocity -= impulse * collision_info.normalWorld * b2.inv_mass;
+
+					b1.angular_momentum += cross(b1_collision_pos, impulse * collision_info.normalWorld);
+					b2.angular_momentum -= cross(b2_collision_pos, impulse * collision_info.normalWorld);
+				}
+			}
+		}
+	}
+}
+
 void RigidBodySystemSimulator::simulateTimestep(float time_step) {
+	handleCollisions();
+
 	for (auto& rb : rigid_bodies) {
 		rb.position += time_step * rb.linear_velocity;
 		rb.linear_velocity += time_step * rb.force * rb.inv_mass;

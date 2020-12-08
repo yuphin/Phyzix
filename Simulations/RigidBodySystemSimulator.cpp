@@ -27,6 +27,9 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 	rigid_bodies.clear();
 	switch (testCase) {
 	case 0:
+		addRigidBody({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
+		addRigidBody({ 0, 2, 0 }, { 1, 1, 1 }, 10);
+		applyForceOnBody(1, { 0.0, 0.0, 0.0 }, { 0,-500,0 });
 		break;
 	case 1:
 		addRigidBody({ 0, 0, 0 }, { 1, 1, 1 }, 10);
@@ -48,10 +51,10 @@ void RigidBodySystemSimulator::handleCollisions() {
 	for (int i = 0; i < rigid_bodies.size(); i++) {
 		RigidBody& b1 = rigid_bodies[i];
 
-		for (int j = i + 1; i < rigid_bodies.size(); j++) {
+		for (int j = i + 1; j < rigid_bodies.size(); j++) {
 			RigidBody& b2 = rigid_bodies[j];
 
-			auto collision_info = checkCollisionSAT(b1.get_world_matrix(), b2.get_world_matrix());
+			auto collision_info = checkCollisionSAT(b1.obj_to_world(), b2.obj_to_world());
 
 			if (collision_info.isValid) {
 				auto b1_collision_pos = collision_info.collisionPointWorld - b1.position;

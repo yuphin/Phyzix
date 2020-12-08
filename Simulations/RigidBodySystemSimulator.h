@@ -44,7 +44,7 @@ private:
 	// add your RigidBodySystem data members, for e.g.,
 	// RigidBodySystem * m_pRigidBodySystem; 
 	Vec3 m_externalForce;
-	double bounciness;
+	double bounciness = 0.75;
 	
 	// UI Attributes
 	Point2D m_mouse;

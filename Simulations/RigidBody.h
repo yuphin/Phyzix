@@ -32,7 +32,6 @@ public:
 	Mat4 inv_inertia_0;
 	Quat orientation = {0,0,0,1};
 	RigidBodyType type;
-	Mat4 get_world_matrix();
 private:
 	void calc_inv_inertia_tensor();
 };

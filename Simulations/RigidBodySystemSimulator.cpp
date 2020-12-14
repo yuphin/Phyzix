@@ -11,6 +11,26 @@ const char* RigidBodySystemSimulator::getTestCasesStr()
 
 void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
+	TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, setGravity, getGravity, &gravity, "");
+	TwAddButton(DUC->g_pTweakBar, "Create Random Box", addBox, this, "");
+}
+
+void TW_CALL RigidBodySystemSimulator::addBox(void* value) {
+	static std::mt19937 eng;
+	static std::uniform_real_distribution<float> randomer(-1.5, 2);
+	((RigidBodySystemSimulator*) value)->addRigidBody({ randomer(eng), 1.0, randomer(eng) }, { 0.3, 0.3, 0.3 }, 2);
+}
+
+void TW_CALL RigidBodySystemSimulator::getGravity(void* value, void* clientData) {
+	static_cast<float*> (value)[0] = static_cast<const Vec3*>(clientData)->x;
+	static_cast<float*> (value)[1] = static_cast<const Vec3*>(clientData)->y;
+	static_cast<float*> (value)[2] = static_cast<const Vec3*>(clientData)->z;
+}
+
+void TW_CALL RigidBodySystemSimulator::setGravity(const void* value, void* clientData) {
+	static_cast<Vec3*> (clientData)->x = static_cast<const float*> (value)[0];
+	static_cast<Vec3*> (clientData)->y = static_cast<const float*> (value)[1];
+	static_cast<Vec3*> (clientData)->z = static_cast<const float*> (value)[2];
 }
 
 void RigidBodySystemSimulator::reset() {}
@@ -26,8 +46,8 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 	m_iTestCase = testCase;
 	rigid_bodies.clear();
 	running = true;
-	static std::mt19937 eng;
-	static std::uniform_real_distribution<float> randomer(0.0f, 1.0f);
+	gravity = 0;
+	mouse_force = 0;
 
 	switch (testCase) {
 	case 0:
@@ -44,15 +64,13 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		addRigidBody({ 0.25, -0.5, 0 }, { 1, 0.5, 0.5 }, 2);
 		addRigidBody({ -0.25, 1, 0 }, { 1, 0.5, 0.5 }, 2);
 		applyForceOnBody(0, { 0.25, -0.5, 0 }, { 0, 10,0 });
-		applyForceOnBody(1, { -0.25, 1, 0 }, { 0, -10,0 });
+		applyForceOnBody(1, { -0.25, 1, 0 }, { 0, -35,0 });
 		break;
 	case 3:
 		*timestep = 0.01f;
-		for (int i = 0; i < 10; i++) {
-			addRigidBody({ randomer(eng), randomer(eng), randomer(eng) }, { 0.3, 0.3, 0.3 }, 20);
-		}
 		addRigidBody({ 0, -1, 0 }, { 5, 0.1, 5 }, 100);
-		rigid_bodies[10].is_kinematic = true;
+		rigid_bodies[0].is_kinematic = true;
+		gravity = Vec3(0, -1, 0);
 		break;
 	default:
 		break;
@@ -102,7 +120,8 @@ void RigidBodySystemSimulator::handleCollisions() {
 
 				auto normal_dot_relative_vel = dot(collision_info.normalWorld, b1_collision_vel - b2_collision_vel);
 
-				if (normal_dot_relative_vel < 0) {
+				if (normal_dot_relative_vel <= 0) {
+
 					auto numerator = -(1 + bounciness) * normal_dot_relative_vel;
 					auto denominator = b1.inv_mass + b2.inv_mass
 						+ dot(
@@ -132,6 +151,17 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 		return;
 	}
 
+	if (m_iTestCase == 3) {		
+		static std::mt19937 eng;
+		static std::uniform_real_distribution<float> randomer(-1.5, 2);
+		static int counter = 0;
+		counter++;
+		if (counter > 500) {
+			addRigidBody({ randomer(eng), 1.0, randomer(eng) }, { 0.3, 0.3, 0.3 }, 2);
+			counter = 0;
+		}
+	}
+
 	handleCollisions();
 
 	for (auto& rb : rigid_bodies) {
@@ -149,7 +179,7 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 	}
 	// Clear forces & torques
 	for (auto& rb : rigid_bodies) {
-		rb.force = mouse_force;
+		rb.force = mouse_force + gravity;
 		rb.torque = 0;
 	}
 

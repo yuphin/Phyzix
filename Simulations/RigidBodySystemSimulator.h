@@ -39,6 +39,9 @@ public:
 	void handleCollisions();
 	void add_torque(int i, Vec3 ang_velocity);
 	void passTimestepVariable(float& time_step);
+	static void TW_CALL RigidBodySystemSimulator::getGravity(void* value, void* clientData);
+	static void TW_CALL RigidBodySystemSimulator::setGravity(const void* value, void* clientData);
+	static void TW_CALL RigidBodySystemSimulator::addBox(void* value);
 
 private:
 	// Attributes
@@ -46,6 +49,7 @@ private:
 	// RigidBodySystem * m_pRigidBodySystem; 
 	Vec3 m_externalForce;
 	Vec3 mouse_force;
+	Vec3 gravity;
 	double bounciness = 0.75;
 	
 	// UI Attributes
@@ -57,5 +61,6 @@ private:
 	DrawingUtilitiesClass* DUC;
 	float* timestep;
 	bool running;
+
 };
 #endif

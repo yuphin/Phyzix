@@ -829,7 +829,7 @@ Vec3 MassSpringSystemSimulator::getVelocityOfMassPoint(int index) {
     return mass_points[index].velocity;
 }
 
-void MassSpringSystemSimulator::passTimestepVariable(float& time_step)
+void MassSpringSystemSimulator::pass_time_step_variable(float& time_step)
 {
     timestep = &time_step;
 }

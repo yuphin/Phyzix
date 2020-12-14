@@ -35,6 +35,17 @@ void RigidBody::calc_inv_inertia_tensor() {
 		inv_inertia_0 = inv_inertia_0.inverse();
 		break;
 	}
+	case RigidBodyType::SPHERE:
+	{
+		constexpr float c = 2.0f / 5.0f;
+		const float size_x_2 = c * mass * offset * offset;
+		inv_inertia_0.value[0][0] = size_x_2;
+		inv_inertia_0.value[1][1] = size_x_2;
+		inv_inertia_0.value[2][2] = size_x_2;
+		inv_inertia_0.value[3][3] = 1;
+		inv_inertia_0 = inv_inertia_0.inverse();
+		break;
+	}
 	default:
 		break;
 	}

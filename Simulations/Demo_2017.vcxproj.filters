@@ -27,7 +27,12 @@
     <ClCompile Include="util\FFmpeg.cpp">
       <Filter>Utilities</Filter>
     </ClCompile>
-    <ClCompile Include="RigidBody.cpp" />
+    <ClCompile Include="RigidBody.cpp">
+      <Filter>Simulator</Filter>
+    </ClCompile>
+    <ClCompile Include="Contact.cpp">
+      <Filter>Simulator</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="collisionDetect.h">
@@ -66,7 +71,12 @@
     <ClInclude Include="util\timer.h">
       <Filter>Utilities</Filter>
     </ClInclude>
-    <ClInclude Include="RigidBody.h" />
+    <ClInclude Include="RigidBody.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="Contact.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utilities">

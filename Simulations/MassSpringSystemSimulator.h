@@ -101,7 +101,7 @@ public:
 		return (T(0) < val) - (val < T(0));
 	}
 
-	void passTimestepVariable(float& time_step);
+	void pass_time_step_variable(float& time_step);
 
 	// Do Not Change
 	void setIntegrator(int integrator) {

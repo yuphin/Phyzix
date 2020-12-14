@@ -1,6 +1,7 @@
 ﻿// header file:
 #include <DirectXMath.h>
 #include <Vector>
+#include "Contact.h"
 using namespace DirectX;
 
 // the return structure, with these values, you should be able to calculate the impulse
@@ -241,10 +242,10 @@ namespace collisionTools{
 	}
 
 
-	inline CollisionInfo checkCollisionSATHelper(const XMMATRIX& obj2World_A, const XMMATRIX& obj2World_B, XMVECTOR size_A, XMVECTOR size_B)
+	inline Contact& checkCollisionSATHelper(const XMMATRIX& obj2World_A, const XMMATRIX& obj2World_B, XMVECTOR size_A, XMVECTOR size_B, CollisionData* data)
 	{
-		CollisionInfo info;
-		info.isValid = false;
+		Contact& info = data->contacts[data->num_contacts++];
+		info.is_valid = false;
 		XMVECTOR collisionPoint = XMVectorZero();
 		float smallOverlap = 10000.0f;
 		XMVECTOR axis;
@@ -378,10 +379,11 @@ namespace collisionTools{
 		}
 
 
-		info.isValid = true;
-		info.collisionPointWorld = collisionPoint;
-		info.depth = smallOverlap;
-		info.normalWorld = normal*-1;
+		info.is_valid = true;
+		info.collision_point = collisionPoint;
+		//info.
+		info.penetration = smallOverlap;
+		info.normal = normal*-1;
 		return info;
 	}
 }
@@ -390,88 +392,89 @@ namespace collisionTools{
 obj2World_A, the transfer matrix from object space of A to the world space
 obj2World_B, the transfer matrix from object space of B to the world space
 */
-inline CollisionInfo checkCollisionSAT(GamePhysics::Mat4& obj2World_A, GamePhysics::Mat4& obj2World_B) {
+inline Contact* checkCollisionSAT(GamePhysics::Mat4& obj2World_A, GamePhysics::Mat4& obj2World_B,
+	CollisionData* data) {
 	using namespace collisionTools;
 	XMMATRIX MatA = obj2World_A.toDirectXMatrix(), MatB = obj2World_B.toDirectXMatrix();
 	XMVECTOR calSizeA = getBoxSize(MatA);
 	XMVECTOR calSizeB = getBoxSize(MatB);
 	
-	return checkCollisionSATHelper(MatA, MatB, calSizeA, calSizeB);
+	return &checkCollisionSATHelper(MatA, MatB, calSizeA, calSizeB, data);
 }
 
 // example of using the checkCollisionSAT function
 inline void testCheckCollision(int caseid){
 
-	if (caseid == 1){// simple examples, suppose that boxes A and B are cubes and have no rotation
-		GamePhysics::Mat4 AM; AM.initTranslation(1.0, 1.0, 1.0);// box A at (1.0,1.0,1.0)
-		GamePhysics::Mat4 BM; BM.initTranslation(2.0, 2.0, 2.0);  //box B at (2.0,2.0,2.0)
+	//if (caseid == 1){// simple examples, suppose that boxes A and B are cubes and have no rotation
+	//	GamePhysics::Mat4 AM; AM.initTranslation(1.0, 1.0, 1.0);// box A at (1.0,1.0,1.0)
+	//	GamePhysics::Mat4 BM; BM.initTranslation(2.0, 2.0, 2.0);  //box B at (2.0,2.0,2.0)
 
-		// check for collision
-		CollisionInfo simpletest = checkCollisionSAT(AM, BM);// should find out a collision here
-		if (!simpletest.isValid)
-			std::printf("No Collision\n");
-		else {
-			std::printf("collision detected at normal: %f, %f, %f\n", simpletest.normalWorld.x, simpletest.normalWorld.y, simpletest.normalWorld.z);
-			std::printf("collision point : %f, %f, %f\n", (simpletest.collisionPointWorld).x, (simpletest.collisionPointWorld).y, simpletest.collisionPointWorld.z);
-		}
-		// case 1 result:
-		// collision detected at normal: -1.000000, -0.000000, -0.000000
-		// collision point : 1.500000, 1.500000, 1.500000
-		// Box A should be pushed to the left
-	}
-	else if (caseid == 2){// case 2, collide at a corner of Box B:
-		GamePhysics::Mat4 AM, BM;
-		AM.initTranslation(0.2f, 5.0f, 1.0f); // box A moves(0.2f, 5.0f, 1.0f) from origin
-		BM.initRotationZ(45); // box B rotates 45 degree around axis z
-		// box A size(9,2,3), box B size(5.656854f, 5.656854f, 2.0f)
-		GamePhysics::Mat4 SizeMat;
-		SizeMat.initScaling(9.0f, 2.0f, 3.0f);
-		AM = SizeMat * AM;
-		SizeMat.initScaling(5.656854f, 5.656854f, 2.0f);
-		BM = SizeMat * BM;
-		// check for collision
-		CollisionInfo simpletest = checkCollisionSAT(AM, BM);// should find out a collision here
+	//	// check for collision
+	//	Contact simpletest = checkCollisionSAT(AM, BM);// should find out a collision here
+	//	if (!simpletest.is_valid)
+	//		std::printf("No Collision\n");
+	//	else {
+	//		std::printf("collision detected at normal: %f, %f, %f\n", simpletest.normal.x, simpletest.normal.y, simpletest.normal.z);
+	//		std::printf("collision point : %f, %f, %f\n", (simpletest.collision_point).x, (simpletest.collision_point).y, simpletest.collision_point.z);
+	//	}
+	//	// case 1 result:
+	//	// collision detected at normal: -1.000000, -0.000000, -0.000000
+	//	// collision point : 1.500000, 1.500000, 1.500000
+	//	// Box A should be pushed to the left
+	//}
+	//else if (caseid == 2){// case 2, collide at a corner of Box B:
+	//	GamePhysics::Mat4 AM, BM;
+	//	AM.initTranslation(0.2f, 5.0f, 1.0f); // box A moves(0.2f, 5.0f, 1.0f) from origin
+	//	BM.initRotationZ(45); // box B rotates 45 degree around axis z
+	//	// box A size(9,2,3), box B size(5.656854f, 5.656854f, 2.0f)
+	//	GamePhysics::Mat4 SizeMat;
+	//	SizeMat.initScaling(9.0f, 2.0f, 3.0f);
+	//	AM = SizeMat * AM;
+	//	SizeMat.initScaling(5.656854f, 5.656854f, 2.0f);
+	//	BM = SizeMat * BM;
+	//	// check for collision
+	//	Contact simpletest = checkCollisionSAT(AM, BM);// should find out a collision here
 
-		if (!simpletest.isValid)
-			std::printf("No Collision\n");
-		else {
-			std::printf("collision detected at normal: %f, %f, %f\n", simpletest.normalWorld.x, simpletest.normalWorld.y, simpletest.normalWorld.z);
-			std::printf("collision point : %f, %f, %f\n", (simpletest.collisionPointWorld).x, (simpletest.collisionPointWorld).y, simpletest.collisionPointWorld.z);
-		}
-		// case 2 result:
-		// collision detected at normal : 0.000000, 1.000000, 0.000000
-		// collision point : 0.000000, 4.000000, 1.000000
-	}
-	else if (caseid == 3){// case 3, collide at a corner of Box A:
-		// box A first rotates 45 degree around axis z
-		// box A moves(-2.0f, 0.0f, 1.0f) from origin,(-2.0f,0.0f,1.0f) is the centre position of A in world space
-		// box A size(2.829f, 2.829f, 2.0f)
-		GamePhysics::Mat4 AM_rot; AM_rot.initRotationZ(45);
-		GamePhysics::Mat4 AM_tra; AM_tra.initTranslation(-2.0f, 0.0f, 1.0f);
-		GamePhysics::Mat4 AM_sca; AM_sca.initScaling(2.829f, 2.829f, 2.0f);
-		// get the object 2 world matrix of A
-		GamePhysics::Mat4 AM = AM_sca * AM_rot * AM_tra; // pay attention to the order! 
-		// order, since we are working with the DirectX, we use left-handed matrixes!
+	//	if (!simpletest.is_valid)
+	//		std::printf("No Collision\n");
+	//	else {
+	//		std::printf("collision detected at normal: %f, %f, %f\n", simpletest.normal.x, simpletest.normal.y, simpletest.normal.z);
+	//		std::printf("collision point : %f, %f, %f\n", (simpletest.collision_point).x, (simpletest.collision_point).y, simpletest.collision_point.z);
+	//	}
+	//	// case 2 result:
+	//	// collision detected at normal : 0.000000, 1.000000, 0.000000
+	//	// collision point : 0.000000, 4.000000, 1.000000
+	//}
+	//else if (caseid == 3){// case 3, collide at a corner of Box A:
+	//	// box A first rotates 45 degree around axis z
+	//	// box A moves(-2.0f, 0.0f, 1.0f) from origin,(-2.0f,0.0f,1.0f) is the centre position of A in world space
+	//	// box A size(2.829f, 2.829f, 2.0f)
+	//	GamePhysics::Mat4 AM_rot; AM_rot.initRotationZ(45);
+	//	GamePhysics::Mat4 AM_tra; AM_tra.initTranslation(-2.0f, 0.0f, 1.0f);
+	//	GamePhysics::Mat4 AM_sca; AM_sca.initScaling(2.829f, 2.829f, 2.0f);
+	//	// get the object 2 world matrix of A
+	//	GamePhysics::Mat4 AM = AM_sca * AM_rot * AM_tra; // pay attention to the order! 
+	//	// order, since we are working with the DirectX, we use left-handed matrixes!
 
-		// box B first rotates 90 degree around axis z
-		// box B then moves (1.0f,0.5f,0.0f) from origin, (1.0f,0.5f,0.0f) is also the centre position of B in world space
-		// box B size(9.0f, 2.0f, 4.0f)
-		GamePhysics::Mat4 BM_rot; BM_rot.initRotationZ(90);
-		GamePhysics::Mat4 BM_tra; BM_tra.initTranslation(1.0f, 0.5f, 0.0f);
-		GamePhysics::Mat4 BM_sca; BM_sca.initScaling(9.0f, 2.0f, 4.0f);
-		GamePhysics::Mat4 BM = BM_sca * BM_rot * BM_tra; // pay attention to the order! 
+	//	// box B first rotates 90 degree around axis z
+	//	// box B then moves (1.0f,0.5f,0.0f) from origin, (1.0f,0.5f,0.0f) is also the centre position of B in world space
+	//	// box B size(9.0f, 2.0f, 4.0f)
+	//	GamePhysics::Mat4 BM_rot; BM_rot.initRotationZ(90);
+	//	GamePhysics::Mat4 BM_tra; BM_tra.initTranslation(1.0f, 0.5f, 0.0f);
+	//	GamePhysics::Mat4 BM_sca; BM_sca.initScaling(9.0f, 2.0f, 4.0f);
+	//	GamePhysics::Mat4 BM = BM_sca * BM_rot * BM_tra; // pay attention to the order! 
 
-		// check for collision
-		CollisionInfo simpletest = checkCollisionSAT(AM, BM);// should find out a collision here
+	//	// check for collision
+	//	Contact simpletest = checkCollisionSAT(AM, BM);// should find out a collision here
 
-		if (!simpletest.isValid)
-			std::printf("No Collision\n");
-		else {
-			std::printf("collision detected at normal: %f, %f, %f\n", simpletest.normalWorld.x, simpletest.normalWorld.y, simpletest.normalWorld.z);
-			std::printf("collision point : %f, %f, %f\n", (simpletest.collisionPointWorld).x, (simpletest.collisionPointWorld).y, simpletest.collisionPointWorld.z);
-		}
-		// case 3 result:
-		// collision detected at normal: -1.000000, 0.000000, -0.000000
-		// collision point : 0.000405, 0.000000, 0.000000
-	}
+	//	if (!simpletest.is_valid)
+	//		std::printf("No Collision\n");
+	//	else {
+	//		std::printf("collision detected at normal: %f, %f, %f\n", simpletest.normal.x, simpletest.normal.y, simpletest.normal.z);
+	//		std::printf("collision point : %f, %f, %f\n", (simpletest.collision_point).x, (simpletest.collision_point).y, simpletest.collision_point.z);
+	//	}
+	//	// case 3 result:
+	//	// collision detected at normal: -1.000000, 0.000000, -0.000000
+	//	// collision point : 0.000405, 0.000000, 0.000000
+	//}
 }

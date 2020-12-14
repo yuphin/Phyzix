@@ -6,6 +6,7 @@
 #include <DXUT.h>
 #include <DDSTextureLoader.h>
 #include <d3dcompiler.h>
+#include "../DrawingUtilitiesClass.h"
 #pragma comment(lib,"D3dcompiler.lib")
 
 
@@ -37,5 +38,10 @@ std::wstring GetExePath();
 
 void UpdateWindowTitle(const std::wstring& appName);
 
+
+inline Vec3 operator*(Vec3& v, Mat4& m) {
+    auto res = XMVector3Transform(v.toDirectXVector(), m.toDirectXMatrix());
+    return Vec3(res);
+}
 
 #endif

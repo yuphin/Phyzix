@@ -36,21 +36,27 @@ public:
 	void addRigidBody(Vec3 position, Vec3 size, int mass);
 	void setOrientationOf(int i, Quat orientation);
 	void setVelocityOf(int i, Vec3 velocity);
-	void handleCollisions();
+	void handle_collisions();
 	void add_torque(int i, Vec3 ang_velocity);
 
 private:
 	// Attributes
 	// add your RigidBodySystem data members, for e.g.,
 	// RigidBodySystem * m_pRigidBodySystem; 
+	void resolve_positions(CollisionData& data);
+	void resolve_velocities(CollisionData& data, Contact* best_col, const std::vector<RigidBody*>& pairs);
+	void calc_after_col_vel(Contact* collision_info, float delta_vel, const std::vector<RigidBody*>& pairs);
+
 	Vec3 m_externalForce;
-	double bounciness = 0.75;
+	Vec3 gravity;
+	double bounciness = 0.6;
 	
 	// UI Attributes
 	Point2D m_mouse;
 	Point2D m_trackmouse;
 	Point2D m_oldtrackmouse;
 	std::vector<RigidBody> rigid_bodies;
+	Plane plane;
 	DrawingUtilitiesClass* DUC;
 };
 #endif

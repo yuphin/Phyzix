@@ -27,3 +27,6 @@ struct CollisionData {
 
 Contact* collision_box_plane(RigidBody* rb1, RigidBody* plane, Mat4& trs_a,
 	CollisionData& c_data);
+
+Contact* collision_sphere_plane(RigidBody* sphere, RigidBody* plane,
+	Mat4& trs_sphere, CollisionData& c_data);

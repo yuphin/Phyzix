@@ -5,6 +5,7 @@
 static constexpr int MAX_CONTACT_POINT = 16;
 enum class RigidBodyType {
 	CUBOID,
+	SPHERE,
 	PLANE
 };
 class RigidBody {
@@ -19,13 +20,20 @@ public:
 		this->type = type;
 		movable = false;
 	}
+	RigidBody(float radius, const Vec3& pos, int mass, 
+		RigidBodyType type = RigidBodyType::SPHERE) {
+		this->offset = radius;
+		this->inv_mass = 1.0f / mass;
+		this->position = pos;
+		calc_inv_inertia_tensor();
+		this->type = type;
+	}
 	RigidBody(const Vec3& position, const Vec3& size, int mass,
 		RigidBodyType type = RigidBodyType::CUBOID) {
 		this->position = position;
 		this->size = size;
 		this->mass = mass;
 		this->type = type;
-		movable = true;
 		inv_mass = 1.0f / mass;
 		calc_inv_inertia_tensor();
 	}
@@ -43,7 +51,7 @@ public:
 	int mass;
 	double inv_mass;
 	float offset;
-	bool movable;
+	bool movable = true;
 	Mat4 inv_inertia_0;
 	Quat orientation = { 0,0,0,1 };
 	RigidBodyType type;

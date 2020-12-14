@@ -26,25 +26,32 @@ void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 	m_iTestCase = testCase;
 	rigid_bodies.clear();
-
+	this->gravity = Vec3(0, -9.81f, 0);
 	switch (testCase) {
 	case 0:
+	/*	addRigidBody({ 0, 1, 0 }, { 1, 1, 1 }, 10);
+		addRigidBody({ 2, 1, 0 }, { 1, 1, 1 }, 10);
+		applyForceOnBody(0, { 0, 1.0, 0.0 }, { 100000,0,0 });
+
+		applyForceOnBody(1, { 2, 1, 0.0 }, { -100000,0,0 });*/
 		addRigidBody({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
 		addRigidBody({ 0, 2, 0 }, { 1, 1, 1 }, 10);
-		applyForceOnBody(1, { 0.0, 0.0, 0.0 }, { 0,-5000,0 });
+		applyForceOnBody(1, { 0.0, 0.0, 0.0 }, { 0,-500,0 });
 		break;
 	case 1:
-		this->gravity = Vec3(0, -9.81f, 0);
+		
 		addRigidBody({ 0, 0, 0 }, { 1, 1, 1 }, 10);
 		//applyForceOnBody(0, { 0.0, 0.5, 0.5 }, { 1,1,0 });
 		setOrientationOf(0, Quat(Vec3(0.5f, 0.8f, 1.0f), (float)(M_PI) * 0.5f));
 		add_torque(0, { 5000, 5000, 5000 });
 		break;
 	case 2:
+	{
+			// todo sphere
+	}
 		break;
 	case 3:
 	{
-		this->gravity = Vec3(0, -9.81f, 0);
 		addRigidBody({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
 		
 	}
@@ -69,7 +76,7 @@ void RigidBodySystemSimulator::handle_collisions() {
 		return;
 	}
 	bool resolve = false;
-	Contact* collision_info;
+	Contact* ci;
 	CollisionData data;
 	for (int i = 0; i < rigid_bodies.size() - 1; i++) {
 		RigidBody& b1 = rigid_bodies[i];
@@ -83,19 +90,25 @@ void RigidBodySystemSimulator::handle_collisions() {
 			});
 			if (pairs[0]->type == RigidBodyType::CUBOID && pairs[1]->type == RigidBodyType::CUBOID) {
 
-				collision_info = &checkCollisionSAT(pairs[0]->obj_to_world(), pairs[1]->obj_to_world());
-				resolve = collision_info->is_valid;
+				ci = checkCollisionSAT(pairs[0]->obj_to_world(), pairs[1]->obj_to_world(), &data);
+				resolve = ci->is_valid;
+				if (ci->is_valid) {
+					ci->bodies[0] = &b1;
+					ci->bodies[1] = &b2;
+					ci->cp_rel[0] = ci->collision_point - b1.position;
+					ci->cp_rel[1] = ci->collision_point - b2.position;
+				}
 			}
 			else if (pairs[0]->type == RigidBodyType::CUBOID && pairs[1]->type == RigidBodyType::PLANE) {
 				Mat4 b1_world = pairs[0]->obj_to_world();
-				collision_info = collision_box_plane(pairs[0], pairs[1], b1_world, data);
-				resolve = collision_info && collision_info->is_valid;
+				ci = collision_box_plane(pairs[0], pairs[1], b1_world, data);
+				resolve = ci && ci->is_valid;
 			}
 			if (resolve) {
 				// Apply position change
 				resolve_positions(data);
 				// Apply velocity change
-				resolve_velocities(data, collision_info, pairs);
+				resolve_velocities(data, ci, pairs);
 			}
 			data.reset();
 		}
@@ -288,7 +301,7 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 
 void RigidBodySystemSimulator::resolve_velocities(CollisionData& data, Contact* best_col,
 	const std::vector<RigidBody*>& pairs) {
-	auto iter_cnt = 4 * data.num_contacts;
+	auto iter_cnt = data.num_contacts == 1 ? 1 : 4 * data.num_contacts;
 	Vec3 angular_mom_delta[2] = { Vec3(), Vec3() };
 	Vec3 linear_vel_delta[2] = { Vec3(), Vec3() };
 	Contact* collision_info;

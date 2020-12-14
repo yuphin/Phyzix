@@ -49,7 +49,7 @@ private:
 
 	Vec3 m_externalForce;
 	Vec3 gravity;
-	double bounciness = 0.6;
+	double bounciness = 0.5f;
 	
 	// UI Attributes
 	Point2D m_mouse;

@@ -41,3 +41,17 @@ Contact* collision_box_plane(RigidBody* rb1, RigidBody* plane, Mat4& trs_a,
 	}
 	return res;
 }
+
+Contact* collision_sphere_plane(RigidBody* sphere, RigidBody* plane, Mat4& trs_sphere, CollisionData& c_data) {
+	// Sphere->offset == radius
+	Contact* res = nullptr;
+	float dist = dot(plane->normal, sphere->position) - sphere->offset - plane->offset;
+	if (dist <= 0) {
+		res = &c_data.contacts[c_data.num_contacts++];
+		res->normal = plane->normal;
+		res->penetration = -dist;
+		res->collision_point = sphere->position - plane->normal * (dist + sphere->offset);
+		res->is_valid = true;
+	}
+	return res;
+}

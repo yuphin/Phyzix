@@ -40,7 +40,8 @@ public:
 	void pass_time_step_variable(float& time_step);
 	static void TW_CALL RigidBodySystemSimulator::getGravity(void* value, void* clientData);
 	static void TW_CALL RigidBodySystemSimulator::setGravity(const void* value, void* clientData);
-	static void TW_CALL RigidBodySystemSimulator::addBox(void* value);
+	static void TW_CALL RigidBodySystemSimulator::addRandomBox(void* value);
+	static void TW_CALL RigidBodySystemSimulator::addRandomSphere(void* value);
 
 private:
 	// Attributes

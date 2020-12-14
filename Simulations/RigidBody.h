@@ -39,6 +39,7 @@ public:
 		calc_inv_inertia_tensor();
 	}
 	Mat4 obj_to_world();
+	Mat4 obj_to_world_plane_rendering();
 	Mat4 get_transformed_inertia(const Mat4& inertia);
 
 	Vec3 position;

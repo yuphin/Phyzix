@@ -7,20 +7,28 @@ RigidBodySystemSimulator::RigidBodySystemSimulator() {
 
 const char* RigidBodySystemSimulator::getTestCasesStr()
 {
-	return "Demo 1, Demo 2, Demo 3, Demo 4, Demo 5, Demo 6, Demo 7, Demo 8, Demo 9";
+	return "Demo 1, Demo 2, Demo 3, Demo 4, Demo 5, Demo 6, Demo 7, Demo 8, Demo 9, Demo 10";
 }
 
 void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
 	TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, setGravity, getGravity, &gravity, "");
-	TwAddButton(DUC->g_pTweakBar, "Create Random Box", addBox, this, "");
+	TwAddButton(DUC->g_pTweakBar, "Create Random Box", addRandomBox, this, "");
+	TwAddButton(DUC->g_pTweakBar, "Create Random Sphere", addRandomSphere, this, "");
 }
 
-void TW_CALL RigidBodySystemSimulator::addBox(void* value) {
+void TW_CALL RigidBodySystemSimulator::addRandomBox(void* value) {
 	static std::mt19937 eng;
 	static std::uniform_real_distribution<float> randomer(-1.5, 2);
 	((RigidBodySystemSimulator*) value)->addRigidBody({ randomer(eng), 1.0, randomer(eng) }, { 0.3, 0.3, 0.3 }, 2);
 }
+
+void TW_CALL RigidBodySystemSimulator::addRandomSphere(void* value) {
+	static std::mt19937 eng;
+	static std::uniform_real_distribution<float> randomer(-1.5, 2);
+	((RigidBodySystemSimulator*)value)->add_sphere({ randomer(eng), 1.0, randomer(eng) }, 0.3, 2);
+}
+
 
 void TW_CALL RigidBodySystemSimulator::getGravity(void* value, void* clientData) {
 	static_cast<float*> (value)[0] = static_cast<const Vec3*>(clientData)->x;
@@ -56,6 +64,14 @@ void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 
 		}
 		break;
+		case RigidBodyType::PLANE:
+		{
+			if (m_iTestCase == 9) {
+				DUC->drawRigidBody(rigid_bodies[i].obj_to_world_plane_rendering().toDirectXMatrix());
+			}
+
+		}
+		break;
 		default:
 			break;
 		}
@@ -81,7 +97,7 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		addRigidBody({ 0, 0, 0 }, { 1, 1, 1 }, 2);
 		break;
 	case 2:
-		*timestep = 0.001f;
+		*timestep = 0.005f;
 		addRigidBody({ 0.25, -0.5, 0 }, { 1, 0.5, 0.5 }, 2);
 		addRigidBody({ -0.25, 1, 0 }, { 1, 0.5, 0.5 }, 2);
 		applyForceOnBody(0, { 0.25, -0.5, 0 }, { 0, 10,0 });
@@ -132,11 +148,18 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		add_sphere({ 0.3,2,0 }, 0.5, 10);
 		add_sphere({ 0.45,3,0 }, 0.5, 10);
 		break;
+	case 9:
+		*timestep = 0.001f;
+		gravity = Vec3(0, -9.81f, 0);
+		rigid_bodies.push_back({ -1,{0.0995f,0.9950f,0} });
 	default:
 		break;
 	}
 	// Add plane
-	rigid_bodies.push_back({ -1,{0,1,0} });
+
+	if (testCase != 9) {
+		rigid_bodies.push_back({ -1,{0,1,0} });
+	}
 }
 
 void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {
@@ -168,6 +191,7 @@ void RigidBodySystemSimulator::handle_collisions() {
 	bool resolve = false;
 	Contact* ci = nullptr;
 	CollisionData data;
+#pragma omp parallel for schedule(auto)
 	for (int i = 0; i < rigid_bodies.size() - 1; i++) {
 		RigidBody& b1 = rigid_bodies[i];
 
@@ -262,11 +286,11 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 	}
 
 	if (m_iTestCase == 0) {
-		for (int i = 0; i < rigid_bodies.size(); i++) {
-			auto& rb = rigid_bodies[i];
-			cout << "Linear Velocity: " << rb.linear_velocity << "\n";
-			cout << "Angular Velocity: " << rb.angular_vel << "\n";
-		}
+		auto& rb = rigid_bodies[0];
+		cout << "Linear Velocity: " << rb.linear_velocity << "\n";
+		cout << "Angular Velocity: " << rb.angular_vel << "\n";
+		auto point_vel = rb.linear_velocity + cross(rb.angular_vel, Vec3(0.3, 0.5, 0.25));
+		cout << "Velocity at point (0.3, 0.5, 0.25): " << point_vel << "\n";
 		running = false;
 	}
 }

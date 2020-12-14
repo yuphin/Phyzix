@@ -34,6 +34,7 @@ public:
 	Vec3 getAngularVelocityOfRigidBody(int i);
 	void applyForceOnBody(int i, Vec3 loc, Vec3 force);
 	void addRigidBody(Vec3 position, Vec3 size, int mass);
+	void add_sphere(const Vec3& pos, float radius, int mass);
 	void setOrientationOf(int i, Quat orientation);
 	void setVelocityOf(int i, Vec3 velocity);
 	void handle_collisions();

@@ -7,7 +7,7 @@ RigidBodySystemSimulator::RigidBodySystemSimulator() {
 
 const char* RigidBodySystemSimulator::getTestCasesStr()
 {
-	return "Demo 1, Demo 2, Demo 3, Demo 4";
+	return "Demo 1, Demo 2, Demo 3, Demo 4, Demo 5";
 }
 
 void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
@@ -19,7 +19,26 @@ void RigidBodySystemSimulator::reset() {}
 void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 	DUC->setUpLighting(Vec3(0, 0, 0), 0.4 * Vec3(1, 1, 1), 2000.0, Vec3(0.5, 0.5, 0.5));
 	for (int i = 0; i < rigid_bodies.size(); i++) {
-		DUC->drawRigidBody(rigid_bodies[i].obj_to_world().toDirectXMatrix());
+		switch (rigid_bodies[i].type) {
+		case RigidBodyType::CUBOID:
+		{
+			DUC->drawRigidBody(rigid_bodies[i].obj_to_world().toDirectXMatrix());
+
+		}
+		break;
+		case RigidBodyType::SPHERE:
+		{
+			if (m_iTestCase == 4) {
+				int a = 4;
+			}
+			const auto& rad = rigid_bodies[i].offset;
+			DUC->drawSphere(rigid_bodies[i].position, {rad,rad,rad});
+
+		}
+		break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -29,17 +48,17 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 	this->gravity = Vec3(0, -9.81f, 0);
 	switch (testCase) {
 	case 0:
-	/*	addRigidBody({ 0, 1, 0 }, { 1, 1, 1 }, 10);
-		addRigidBody({ 2, 1, 0 }, { 1, 1, 1 }, 10);
-		applyForceOnBody(0, { 0, 1.0, 0.0 }, { 100000,0,0 });
+		/*	addRigidBody({ 0, 1, 0 }, { 1, 1, 1 }, 10);
+			addRigidBody({ 2, 1, 0 }, { 1, 1, 1 }, 10);
+			applyForceOnBody(0, { 0, 1.0, 0.0 }, { 100000,0,0 });
 
-		applyForceOnBody(1, { 2, 1, 0.0 }, { -100000,0,0 });*/
+			applyForceOnBody(1, { 2, 1, 0.0 }, { -100000,0,0 });*/
 		addRigidBody({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
 		addRigidBody({ 0, 2, 0 }, { 1, 1, 1 }, 10);
 		applyForceOnBody(1, { 0.0, 0.0, 0.0 }, { 0,-500,0 });
 		break;
 	case 1:
-		
+
 		addRigidBody({ 0, 0, 0 }, { 1, 1, 1 }, 10);
 		//applyForceOnBody(0, { 0.0, 0.5, 0.5 }, { 1,1,0 });
 		setOrientationOf(0, Quat(Vec3(0.5f, 0.8f, 1.0f), (float)(M_PI) * 0.5f));
@@ -47,13 +66,23 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		break;
 	case 2:
 	{
-			// todo sphere
+		//this->gravity = Vec3();
+		add_sphere({ 0,0,0 }, 0.5, 10);
 	}
-		break;
+	break;
 	case 3:
 	{
 		addRigidBody({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
-		
+
+	}
+	break;
+	case 4:
+	{
+	/*	add_sphere({ 0.3,0,0 }, 0.5, 10);
+		add_sphere({ 0,2,0 }, 0.5, 10);*/
+		addRigidBody({ 0.0,0,0 }, { 1,1,1 }, 10);
+		add_sphere({ 0.3,2,0 }, 0.5, 10);
+		add_sphere({ 0.45,3,0 }, 0.5, 10);
 	}
 	break;
 	default:
@@ -76,7 +105,7 @@ void RigidBodySystemSimulator::handle_collisions() {
 		return;
 	}
 	bool resolve = false;
-	Contact* ci;
+	Contact* ci = nullptr;
 	CollisionData data;
 	for (int i = 0; i < rigid_bodies.size() - 1; i++) {
 		RigidBody& b1 = rigid_bodies[i];
@@ -91,7 +120,7 @@ void RigidBodySystemSimulator::handle_collisions() {
 			if (pairs[0]->type == RigidBodyType::CUBOID && pairs[1]->type == RigidBodyType::CUBOID) {
 
 				ci = checkCollisionSAT(pairs[0]->obj_to_world(), pairs[1]->obj_to_world(), &data);
-				resolve = ci->is_valid;
+				resolve = ci && ci->is_valid;
 				if (ci->is_valid) {
 					ci->bodies[0] = &b1;
 					ci->bodies[1] = &b2;
@@ -104,8 +133,25 @@ void RigidBodySystemSimulator::handle_collisions() {
 				ci = collision_box_plane(pairs[0], pairs[1], b1_world, data);
 				resolve = ci && ci->is_valid;
 			}
+			else if (pairs[0]->type == RigidBodyType::SPHERE && pairs[1]->type == RigidBodyType::PLANE) {
+				Mat4 b1_world = pairs[0]->obj_to_world();
+				ci = collision_sphere_plane(pairs[0], pairs[1], b1_world, data);
+				resolve = ci && ci->is_valid;
+			}
+			else if (pairs[0]->type == RigidBodyType::SPHERE && pairs[1]->type == RigidBodyType::SPHERE) {
+				ci = collision_sphere_sphere(pairs[0], pairs[1], data);
+				resolve = ci && ci->is_valid;
+			}
+			else if (pairs[0]->type == RigidBodyType::CUBOID && pairs[1]->type == RigidBodyType::SPHERE) {
+				Mat4 b1_world = pairs[0]->obj_to_world();
+				ci = collision_box_sphere(pairs[0], pairs[1], b1_world, data);
+				resolve = ci && ci->is_valid;
+			}
 			if (resolve) {
 				// Apply position change
+				if (pairs[0]->type == RigidBodyType::CUBOID && pairs[1]->type == RigidBodyType::SPHERE) {
+					int a = 4;
+				}
 				resolve_positions(data);
 				// Apply velocity change
 				resolve_velocities(data, ci, pairs);
@@ -116,7 +162,8 @@ void RigidBodySystemSimulator::handle_collisions() {
 }
 
 void RigidBodySystemSimulator::simulateTimestep(float time_step) {
-	time_step *= 0.25;
+
+	//time_step *= 0.25;
 	//time_step = 0.0000001;
 	for (auto& rb : rigid_bodies) {
 		if (!rb.movable)
@@ -167,6 +214,12 @@ void RigidBodySystemSimulator::applyForceOnBody(int i, Vec3 loc, Vec3 force) {
 void RigidBodySystemSimulator::addRigidBody(Vec3 position, Vec3 size, int mass) {
 	rigid_bodies.push_back({ position, size, mass });
 }
+
+void RigidBodySystemSimulator::add_sphere(const Vec3& pos, float radius, int mass) {
+	RigidBody sphere(radius, pos, mass);
+	rigid_bodies.emplace_back(sphere);
+}
+
 
 void RigidBodySystemSimulator::setOrientationOf(int i, Quat orientation) {
 	rigid_bodies[i].orientation = orientation;
@@ -328,7 +381,7 @@ void RigidBodySystemSimulator::resolve_velocities(CollisionData& data, Contact* 
 		if (index == data.num_contacts) {
 			break;
 		}
-	
+
 		//collision_info = best_col;
 		auto b1_inv_inertia = pairs[0]->get_transformed_inertia(pairs[0]->inv_inertia_0);
 		auto b2_inv_inertia = pairs[1]->get_transformed_inertia(pairs[1]->inv_inertia_0);
@@ -353,7 +406,7 @@ void RigidBodySystemSimulator::resolve_velocities(CollisionData& data, Contact* 
 			angular_mom_delta[1] = cross(b2_collision_pos, impulse * collision_info->normal);
 			pairs[0]->linear_velocity += linear_vel_delta[0];
 			pairs[1]->linear_velocity -= linear_vel_delta[1];
-			
+
 			pairs[0]->angular_momentum += angular_mom_delta[0];
 			pairs[1]->angular_momentum -= angular_mom_delta[1];
 			Vec3 delta_vel[2];

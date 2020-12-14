@@ -24,6 +24,7 @@ public:
 		RigidBodyType type = RigidBodyType::SPHERE) {
 		this->offset = radius;
 		this->inv_mass = 1.0f / mass;
+		this->mass = mass;
 		this->position = pos;
 		calc_inv_inertia_tensor();
 		this->type = type;
@@ -45,8 +46,8 @@ public:
 	Vec3 linear_velocity;
 	Vec3 angular_vel;
 	Vec3 angular_momentum;
-	Vec3 torque;
-	Vec3 force;
+	Vec3 torque = Vec3();
+	Vec3 force = Vec3();
 	Vec3 normal;
 	int mass;
 	double inv_mass;

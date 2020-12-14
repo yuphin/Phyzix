@@ -185,7 +185,7 @@ void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {
 		Vec3 inputView = Vec3((float)mouseDiff.x, (float)-mouseDiff.y, 0);
 		Vec3 inputWorld = worldViewInv.transformVectorNormal(inputView);
 		// find a proper scale!
-		float inputScale = 0.0001f;
+		float inputScale = 0.0001f * (0.01 / *timestep);
 		inputWorld = inputWorld * inputScale;
 		mouse_force = inputWorld;
 	}

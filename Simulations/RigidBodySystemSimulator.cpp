@@ -356,14 +356,14 @@ void RigidBodySystemSimulator::add_torque(int i, Vec3 ang_accelaration) {
 
 void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 	// Apply positional change
-	auto iter_cnt = 4 * data.num_contacts;
+	auto iter_cnt = data.num_contacts == 1 ? 1 : 4 * data.num_contacts;
 	Contact* collision_info;
 	Vec3 angular_delta[2] = { Vec3(), Vec3() };
 	Vec3 linear_delta[2] = { Vec3(), Vec3() };
 
 	constexpr float angular_limit = 0.2f;
 	for (int iter = 0; iter < iter_cnt; iter++) {
-		auto max = 0.01f;
+		auto max = 0.001f;
 		int index = data.num_contacts;
 		for (int i = 0; i < data.num_contacts; i++) {
 			if (data.contacts[i].penetration > max) {
@@ -444,10 +444,9 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 				//std::cout << "Angular velocity " << collision_info->bodies[i]->angular_vel.x << " " <<
 				//collision_info->bodies[i]->angular_vel.y <<" " << collision_info->bodies[i]->angular_vel.z << std::endl;
 				collision_info->bodies[i]->orientation += 0.5 * collision_info->bodies[i]->orientation * q;
-				collision_info->bodies[i]->orientation.unit();
-				/*collision_info->bodies[i]->orientation.x += angular_delta[i].x * 0.5;
+				collision_info->bodies[i]->orientation.x += angular_delta[i].x * 0.5;
 				collision_info->bodies[i]->orientation.y += angular_delta[i].y * 0.5;
-				collision_info->bodies[i]->orientation.z += angular_delta[i].z * 0.5;*/
+				collision_info->bodies[i]->orientation.z += angular_delta[i].z * 0.5;
 				//printf("Orientation delta %f %f %f\n", angular_delta[i].x, angular_delta[i].y, angular_delta[i].z);
 			}
 		}
@@ -487,7 +486,7 @@ void RigidBodySystemSimulator::resolve_velocities(CollisionData& data, Contact* 
 	}
 	for (int iter = 0; iter < iter_cnt; iter++) {
 		int index = data.num_contacts;
-		auto max = -1000.0f;
+		auto max = 0.001;
 		for (int i = 0; i < data.num_contacts; i++) {
 			if (data.contacts[i].expected_vel > max) {
 				max = data.contacts[i].expected_vel;

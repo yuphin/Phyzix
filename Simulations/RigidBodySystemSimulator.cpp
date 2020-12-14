@@ -25,23 +25,60 @@ void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 	m_iTestCase = testCase;
 	rigid_bodies.clear();
+	running = true;
+	static std::mt19937 eng;
+	static std::uniform_real_distribution<float> randomer(0.0f, 1.0f);
+
 	switch (testCase) {
 	case 0:
-		addRigidBody({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
-		addRigidBody({ 0, 2, 0 }, { 1, 1, 1 }, 10);
-		applyForceOnBody(1, { 0.0, 0.0, 0.0 }, { 0,-500,0 });
+		*timestep = 2.0f;
+		addRigidBody({ 0, 0, 0 }, { 1, 0.6, 0.5 }, 2);
+		applyForceOnBody(0, { 0.3, 0.5, 0.25 }, { 1, 1,0 });
 		break;
 	case 1:
-		addRigidBody({ 0, 0, 0 }, { 1, 1, 1 }, 10);
-		applyForceOnBody(0, { 0.0, 0.5, 0.5 }, { 1,1,0 });
-		add_torque(0, { 5000, 5000, 5000 });
+		*timestep = 0.01f;
+		addRigidBody({ 0, 0, 0 }, { 1, 1, 1 }, 2);
+		break;
+	case 2:
+		*timestep = 0.01f;
+		addRigidBody({ 0.25, -0.5, 0 }, { 1, 0.5, 0.5 }, 2);
+		addRigidBody({ -0.25, 1, 0 }, { 1, 0.5, 0.5 }, 2);
+		applyForceOnBody(0, { 0.25, -0.5, 0 }, { 0, 10,0 });
+		applyForceOnBody(1, { -0.25, 1, 0 }, { 0, -10,0 });
+		break;
+	case 3:
+		*timestep = 0.01f;
+		for (int i = 0; i < 10; i++) {
+			addRigidBody({ randomer(eng), randomer(eng), randomer(eng) }, { 0.3, 0.3, 0.3 }, 20);
+		}
+		addRigidBody({ 0, -1, 0 }, { 5, 0.1, 5 }, 100);
+		rigid_bodies[10].is_kinematic = true;
 		break;
 	default:
 		break;
 	}
 }
 
-void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {}
+void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed)
+{
+	Point2D mouseDiff;
+	mouseDiff.x = trackmouse.x - old_trackmouse.x;
+	mouseDiff.y = trackmouse.y - old_trackmouse.y;
+	if (mouseDiff.x != 0 || mouseDiff.y != 0)
+	{
+		Mat4 worldViewInv = Mat4(DUC->g_camera.GetWorldMatrix() * DUC->g_camera.GetViewMatrix());
+		worldViewInv = worldViewInv.inverse();
+		Vec3 inputView = Vec3((float)mouseDiff.x, (float)-mouseDiff.y, 0);
+		Vec3 inputWorld = worldViewInv.transformVectorNormal(inputView);
+		// find a proper scale!
+		float inputScale = 0.0001f;
+		inputWorld = inputWorld * inputScale;
+		mouse_force = inputWorld;
+	}
+	else {
+		mouse_force = {};
+	}
+}
 
 void RigidBodySystemSimulator::handleCollisions() {
 	if (rigid_bodies.size() < 2) {
@@ -75,11 +112,15 @@ void RigidBodySystemSimulator::handleCollisions() {
 
 					auto impulse = numerator / denominator;
 
-					b1.linear_velocity += impulse * collision_info.normalWorld * b1.inv_mass;
-					b2.linear_velocity -= impulse * collision_info.normalWorld * b2.inv_mass;
+					if (!b1.is_kinematic) {
+						b1.linear_velocity += impulse * collision_info.normalWorld * b1.inv_mass;
+						b1.angular_momentum += cross(b1_collision_pos, impulse * collision_info.normalWorld);
+					}
 
-					b1.angular_momentum += cross(b1_collision_pos, impulse * collision_info.normalWorld);
-					b2.angular_momentum -= cross(b2_collision_pos, impulse * collision_info.normalWorld);
+					if (!b2.is_kinematic) {
+						b2.linear_velocity -= impulse * collision_info.normalWorld * b2.inv_mass;
+						b2.angular_momentum -= cross(b2_collision_pos, impulse * collision_info.normalWorld);
+					}
 				}
 			}
 		}
@@ -87,9 +128,16 @@ void RigidBodySystemSimulator::handleCollisions() {
 }
 
 void RigidBodySystemSimulator::simulateTimestep(float time_step) {
+	if (!running) {
+		return;
+	}
+
 	handleCollisions();
 
 	for (auto& rb : rigid_bodies) {
+		if (rb.is_kinematic) {
+			continue;
+		}
 		rb.position += time_step * rb.linear_velocity;
 		rb.linear_velocity += time_step * rb.force * rb.inv_mass;
 		auto ang_vel = Quat(rb.angular_vel.x, rb.angular_vel.y, rb.angular_vel.z, 0);
@@ -101,14 +149,31 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 	}
 	// Clear forces & torques
 	for (auto& rb : rigid_bodies) {
-		rb.force = 0;
+		rb.force = mouse_force;
 		rb.torque = 0;
+	}
+
+	if (m_iTestCase == 0) {
+		for (int i = 0; i < rigid_bodies.size(); i++) {
+			auto& rb = rigid_bodies[i];
+			cout << "Linear Velocity: " << rb.linear_velocity << "\n";
+			cout << "Angular Velocity: " << rb.angular_vel << "\n";
+		}
+		running = false;
 	}
 }
 
-void RigidBodySystemSimulator::onClick(int x, int y) {}
+void RigidBodySystemSimulator::onClick(int x, int y) {
+	trackmouse.x = x;
+	trackmouse.y = y;
+}
 
-void RigidBodySystemSimulator::onMouse(int x, int y) {}
+void RigidBodySystemSimulator::onMouse(int x, int y) {
+	old_trackmouse.x = x;
+	old_trackmouse.y = y;
+	trackmouse.x = x;
+	trackmouse.y = y;
+}
 
 int RigidBodySystemSimulator::getNumberOfRigidBodies() {
 	return rigid_bodies.size();
@@ -149,5 +214,10 @@ void RigidBodySystemSimulator::add_torque(int i, Vec3 ang_accelaration) {
 		rigid_bodies[i].inv_inertia_0.inverse()
 	);
 	rigid_bodies[i].torque += inertia * ang_accelaration;
+}
+
+void RigidBodySystemSimulator::passTimestepVariable(float& time_step)
+{
+	timestep = &time_step;
 }
 

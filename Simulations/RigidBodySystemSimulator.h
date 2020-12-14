@@ -38,19 +38,24 @@ public:
 	void setVelocityOf(int i, Vec3 velocity);
 	void handleCollisions();
 	void add_torque(int i, Vec3 ang_velocity);
+	void passTimestepVariable(float& time_step);
 
 private:
 	// Attributes
 	// add your RigidBodySystem data members, for e.g.,
 	// RigidBodySystem * m_pRigidBodySystem; 
 	Vec3 m_externalForce;
+	Vec3 mouse_force;
 	double bounciness = 0.75;
 	
 	// UI Attributes
-	Point2D m_mouse;
-	Point2D m_trackmouse;
-	Point2D m_oldtrackmouse;
+	Point2D mouse;
+	Point2D trackmouse;
+	Point2D old_trackmouse;
+
 	std::vector<RigidBody> rigid_bodies;
 	DrawingUtilitiesClass* DUC;
+	float* timestep;
+	bool running;
 };
 #endif

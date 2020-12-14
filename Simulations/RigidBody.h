@@ -32,6 +32,7 @@ public:
 	Mat4 inv_inertia_0;
 	Quat orientation = {0,0,0,1};
 	RigidBodyType type;
+	bool is_kinematic = false;
 private:
 	void calc_inv_inertia_tensor();
 };

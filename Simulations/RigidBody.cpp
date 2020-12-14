@@ -20,10 +20,12 @@ Mat4 RigidBody::obj_to_world_plane_rendering() {
 	scale.value[1][1] = 0.001;
 	scale.value[2][2] = 100;
 	scale.value[3][3] = 1;
+
 	Vec3 d = Vec3(0, 1, 0);
 	Vec3 a = cross(d, normal);
-	Quat q = { a.x, a.y, a.z, sqrt(1) + dot(d, a) };
+	Quat q = { a.x, a.y, a.z, sqrt(1) + dot(d, normal) };
 	q = q.unit();
+
 	auto rot = q.getRotMat();
 	trans.initTranslation(normal.x * offset, normal.y * offset, normal.z * offset);
 	return scale * rot * trans;

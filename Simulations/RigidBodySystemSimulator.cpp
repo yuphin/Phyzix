@@ -12,6 +12,7 @@ const char* RigidBodySystemSimulator::getTestCasesStr()
 
 void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
+	TwAddVarRW(DUC->g_pTweakBar, "Render Planes", TW_TYPE_BOOLCPP, &render_planes, "");
 	TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, setGravity, getGravity, &gravity, "");
 	TwAddButton(DUC->g_pTweakBar, "Create Random Box", addRandomBox, this, "");
 	TwAddButton(DUC->g_pTweakBar, "Create Random Sphere", addRandomSphere, this, "");
@@ -66,7 +67,7 @@ void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 		break;
 		case RigidBodyType::PLANE:
 		{
-			if (m_iTestCase == 9) {
+			if (render_planes) {
 				DUC->drawRigidBody(rigid_bodies[i].obj_to_world_plane_rendering().toDirectXMatrix());
 			}
 
@@ -84,7 +85,7 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 	running = true;
 	gravity = 0;
 	mouse_force = 0;
-
+	render_planes = false;
 
 	switch (testCase) {
 	case 0:
@@ -147,11 +148,20 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		addRigidBody({ 0.0,0,0 }, { 1,1,1 }, 10);
 		add_sphere({ 0.3,2,0 }, 0.5, 10);
 		add_sphere({ 0.45,3,0 }, 0.5, 10);
+		add_sphere({ -0.45,4,-.5 }, 0.5, 10);
 		break;
 	case 9:
+		render_planes = true;
 		*timestep = 0.001f;
 		gravity = Vec3(0, -9.81f, 0);
-		rigid_bodies.push_back({ -1,{0.0995f,0.9950f,0} });
+		rigid_bodies.push_back({ 0,{0.0995f,0.9950f,0} });
+		addRigidBody({ 0.0,4,0 }, { 0.3,0.3,0.3 }, 10);
+		addRigidBody({ 1.0,3,0 }, { 0.3,0.3,0.3 }, 10);
+		add_sphere({ 0.3,2,0 }, 0.3, 10);
+		add_sphere({ 0.45,3,0 }, 0.3, 10);
+		add_sphere({ 0.45,2.5,1 }, 0.3, 10);
+		add_sphere({ -0.45,1.5,-1 }, 0.3, 10);
+
 	default:
 		break;
 	}

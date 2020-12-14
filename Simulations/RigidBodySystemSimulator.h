@@ -66,6 +66,7 @@ private:
 	DrawingUtilitiesClass* DUC;
 	float* timestep;
 	bool running;
+	bool render_planes;
 
 };
 #endif

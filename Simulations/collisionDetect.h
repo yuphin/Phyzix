@@ -7,7 +7,7 @@ using namespace DirectX;
 // the return structure, with these values, you should be able to calculate the impulse
 // the depth shouldn't be used in your impulse calculation, it is a redundant value
 // if the normalWorld == XMVectorZero(), no collision
-struct CollisionInfo{
+struct CollisionInfo {
 	bool isValid;                          // whether there is a collision point, true for yes
 	GamePhysics::Vec3 collisionPointWorld; // the position of the collision point in world space
 	GamePhysics::Vec3 normalWorld;         // the direction of the impulse to A, negative of the collision face of A
@@ -15,8 +15,8 @@ struct CollisionInfo{
 };
 
 // tool data structures/functions called by the collision detection method, you can ignore the details here
-namespace collisionTools{
-	struct Projection{
+namespace collisionTools {
+	struct Projection {
 		float min, max;
 	};
 
@@ -26,6 +26,7 @@ namespace collisionTools{
 		const XMVECTOR centerWorld = XMVector3Transform(XMVectorZero(), obj2World);
 		XMVECTOR edges[3];
 		std::vector<XMVECTOR> results;
+		results.reserve(40);
 		for (int precession = 0.1; precession <= 0.5; precession += 0.1)
 		{
 			for (size_t i = 0; i < 3; ++i)
@@ -57,6 +58,7 @@ namespace collisionTools{
 		for (size_t i = 0; i < 3; ++i)
 			edges[i] = XMVector3TransformNormal(XMVectorSetByIndex(XMVectorZero(), 0.5f, i), obj2World);
 		std::vector<XMVECTOR> results;
+		results.reserve(8);
 		results.push_back(centerWorld - edges[0] - edges[1] - edges[2]);
 		results.push_back(centerWorld + edges[0] - edges[1] - edges[2]);
 		results.push_back(centerWorld - edges[0] + edges[1] - edges[2]);
@@ -73,11 +75,11 @@ namespace collisionTools{
 	{
 		XMVECTOR size = XMVectorZero();
 		XMVECTOR edges[3];
-		for (size_t i = 0; i < 3; ++i){
+		for (size_t i = 0; i < 3; ++i) {
 			edges[i] = XMVector3TransformNormal(XMVectorSetByIndex(XMVectorZero(), 0.5f, i), obj2World);
 			XMVECTOR length = XMVector3Length(edges[i]);
 
-			size = XMVectorSetByIndex(size, 2.0f*XMVectorGetByIndex(length, 0), i);
+			size = XMVectorSetByIndex(size, 2.0f * XMVectorGetByIndex(length, 0), i);
 		}
 		return size;
 	}
@@ -92,6 +94,7 @@ namespace collisionTools{
 		XMVECTOR edge2 = XMVector3TransformNormal(yaxis, obj2World);
 		XMVECTOR edge3 = XMVector3TransformNormal(zaxis, obj2World);
 		std::vector<XMVECTOR> results;
+		results.reserve(3);
 		results.push_back(edge1);
 		results.push_back(edge2);
 		results.push_back(edge3);
@@ -102,6 +105,7 @@ namespace collisionTools{
 	inline std::vector<XMVECTOR> getAxisNormalToFaces(const XMMATRIX& obj2World)
 	{
 		std::vector<XMVECTOR> edges;
+		edges.reserve(3);
 		XMVECTOR xaxis = XMVectorSet(1, 0, 0, 1);
 		XMVECTOR yaxis = XMVectorSet(0, 1, 0, 1);
 		XMVECTOR zaxis = XMVectorSet(0, 0, 1, 1);
@@ -109,6 +113,7 @@ namespace collisionTools{
 		XMVECTOR edge2 = XMVector3Normalize(XMVector3TransformNormal(yaxis, obj2World));
 		XMVECTOR edge3 = XMVector3Normalize(XMVector3TransformNormal(zaxis, obj2World));
 		std::vector<XMVECTOR> results;
+		results.reserve(3);
 		edges.push_back(edge1);
 		edges.push_back(edge2);
 		edges.push_back(edge3);
@@ -123,9 +128,10 @@ namespace collisionTools{
 		std::vector<XMVECTOR> edges2 = getAxisNormalToFaces(obj2World_B);
 
 		std::vector<XMVECTOR> results;
+		results.reserve(edges1.size() * edges2.size());
 		for (int i = 0; i < edges1.size(); i++)
 		{
-			for (int j = 0; j<edges2.size(); j++)
+			for (int j = 0; j < edges2.size(); j++)
 			{
 				XMVECTOR vector = XMVector3Cross(edges1[i], edges2[j]);
 				if (XMVectorGetX(XMVector3Length(vector)) > 0)
@@ -160,7 +166,7 @@ namespace collisionTools{
 
 	inline bool overlap(Projection p1, Projection p2)
 	{
-		return !((p1.max > p2.max && p1.min > p2.max) || (p2.max > p1.max && p2.min > p1.max));
+		return !((p1.max > p2.max&& p1.min > p2.max) || (p2.max > p1.max&& p2.min > p1.max));
 	}
 
 	inline float getOverlap(Projection p1, Projection p2)
@@ -169,11 +175,11 @@ namespace collisionTools{
 	}
 
 	static inline XMVECTOR contactPoint(
-		const XMVECTOR &pOne,
-		const XMVECTOR &dOne,
+		const XMVECTOR& pOne,
+		const XMVECTOR& dOne,
 		float oneSize,
-		const XMVECTOR &pTwo,
-		const XMVECTOR &dTwo,
+		const XMVECTOR& pTwo,
+		const XMVECTOR& dTwo,
 		float twoSize,
 
 		// If this is true, and the contact point is outside
@@ -266,7 +272,7 @@ namespace collisionTools{
 				// then we can guarantee that the shapes do not overlap
 				return info;
 			}
-			else{
+			else {
 				// get the overlap
 				float o = getOverlap(p1, p2);
 				// check for minimum
@@ -289,7 +295,7 @@ namespace collisionTools{
 				// then we can guarantee that the shapes do not overlap
 				return  info;
 			}
-			else{
+			else {
 				// get the overlap
 				float o = getOverlap(p1, p2);
 				// check for minimum
@@ -314,7 +320,7 @@ namespace collisionTools{
 				// then we can guarantee that the shapes do not overlap
 				return info;
 			}
-			else{
+			else {
 				// get the overlap
 				float o = getOverlap(p1, p2);
 				// check for minimum
@@ -331,50 +337,50 @@ namespace collisionTools{
 		// if we get here then we know that every axis had overlap on it
 		// so we can guarantee an intersection
 		XMVECTOR normal;
-		switch (fromWhere){
-		case 0:{
-				   normal = axis;
-				   if (XMVectorGetX(XMVector3Dot(axis, toCenter)) <= 0)
-				   {
-					   normal = normal * -1.0f;
-				   }
-				   collisionPoint = handleVertexToface(obj2World_B, toCenter);
+		switch (fromWhere) {
+		case 0: {
+			normal = axis;
+			if (XMVectorGetX(XMVector3Dot(axis, toCenter)) <= 0)
+			{
+				normal = normal * -1.0f;
+			}
+			collisionPoint = handleVertexToface(obj2World_B, toCenter);
 		}break;
-		case 1:{
-				   normal = axis;
-				   if (XMVectorGetX(XMVector3Dot(axis, toCenter)) <= 0)
-				   {
-					   normal = normal * -1.0f;
-				   }
-				   collisionPoint = handleVertexToface(obj2World_A, toCenter*-1);
+		case 1: {
+			normal = axis;
+			if (XMVectorGetX(XMVector3Dot(axis, toCenter)) <= 0)
+			{
+				normal = normal * -1.0f;
+			}
+			collisionPoint = handleVertexToface(obj2World_A, toCenter * -1);
 		}break;
-		case 2:{
-				   XMVECTOR axis = XMVector3Normalize(XMVector3Cross(axes1[whichEdges / 3], axes2[whichEdges % 3]));
-				   normal = axis;
-				   if (XMVectorGetX(XMVector3Dot(axis, toCenter)) <= 0)
-				   {
-					   normal = normal * -1.0f;
-				   }
-				   XMVECTOR ptOnOneEdge = XMVectorSet(0.5, 0.5, 0.5, 1);
-				   XMVECTOR ptOnTwoEdge = XMVectorSet(0.5, 0.5, 0.5, 1);
+		case 2: {
+			XMVECTOR axis = XMVector3Normalize(XMVector3Cross(axes1[whichEdges / 3], axes2[whichEdges % 3]));
+			normal = axis;
+			if (XMVectorGetX(XMVector3Dot(axis, toCenter)) <= 0)
+			{
+				normal = normal * -1.0f;
+			}
+			XMVECTOR ptOnOneEdge = XMVectorSet(0.5, 0.5, 0.5, 1);
+			XMVECTOR ptOnTwoEdge = XMVectorSet(0.5, 0.5, 0.5, 1);
 
-				   for (int i = 0; i < 3; i++)
-				   {
-					   if (i == whichEdges / 3) ptOnOneEdge = XMVectorSetByIndex(ptOnOneEdge, 0, i);
-					   else if (XMVectorGetX(XMVector3Dot(axes1[i], normal)) < 0) ptOnOneEdge = XMVectorSetByIndex(ptOnOneEdge, -XMVectorGetByIndex(ptOnOneEdge, i), i);
+			for (int i = 0; i < 3; i++)
+			{
+				if (i == whichEdges / 3) ptOnOneEdge = XMVectorSetByIndex(ptOnOneEdge, 0, i);
+				else if (XMVectorGetX(XMVector3Dot(axes1[i], normal)) < 0) ptOnOneEdge = XMVectorSetByIndex(ptOnOneEdge, -XMVectorGetByIndex(ptOnOneEdge, i), i);
 
-					   if (i == whichEdges % 3) ptOnTwoEdge = XMVectorSetByIndex(ptOnTwoEdge, 0, i);
-					   else if (XMVectorGetX(XMVector3Dot(axes2[i], normal)) > 0) ptOnTwoEdge = XMVectorSetByIndex(ptOnTwoEdge, -XMVectorGetByIndex(ptOnTwoEdge, i), i);
-				   }
-				   ptOnOneEdge = XMVector3Transform(ptOnOneEdge, obj2World_A);
-				   ptOnTwoEdge = XMVector3Transform(ptOnTwoEdge, obj2World_B);
-				   collisionPoint = contactPoint(ptOnOneEdge,
-					   axes1[whichEdges / 3],
-					   (float)XMVectorGetByIndex(size_A, (whichEdges / 3)),
-					   ptOnTwoEdge,
-					   axes2[whichEdges % 3],
-					   XMVectorGetByIndex(size_B, (whichEdges % 3)),
-					   bestSingleAxis);
+				if (i == whichEdges % 3) ptOnTwoEdge = XMVectorSetByIndex(ptOnTwoEdge, 0, i);
+				else if (XMVectorGetX(XMVector3Dot(axes2[i], normal)) > 0) ptOnTwoEdge = XMVectorSetByIndex(ptOnTwoEdge, -XMVectorGetByIndex(ptOnTwoEdge, i), i);
+			}
+			ptOnOneEdge = XMVector3Transform(ptOnOneEdge, obj2World_A);
+			ptOnTwoEdge = XMVector3Transform(ptOnTwoEdge, obj2World_B);
+			collisionPoint = contactPoint(ptOnOneEdge,
+				axes1[whichEdges / 3],
+				(float)XMVectorGetByIndex(size_A, (whichEdges / 3)),
+				ptOnTwoEdge,
+				axes2[whichEdges % 3],
+				XMVectorGetByIndex(size_B, (whichEdges % 3)),
+				bestSingleAxis);
 		}break;
 		}
 
@@ -383,7 +389,7 @@ namespace collisionTools{
 		info.collision_point = collisionPoint;
 		//info.
 		info.penetration = smallOverlap;
-		info.normal = normal*-1;
+		info.normal = normal * -1;
 		return info;
 	}
 }
@@ -398,12 +404,12 @@ inline Contact* checkCollisionSAT(GamePhysics::Mat4& obj2World_A, GamePhysics::M
 	XMMATRIX MatA = obj2World_A.toDirectXMatrix(), MatB = obj2World_B.toDirectXMatrix();
 	XMVECTOR calSizeA = getBoxSize(MatA);
 	XMVECTOR calSizeB = getBoxSize(MatB);
-	
+
 	return &checkCollisionSATHelper(MatA, MatB, calSizeA, calSizeB, data);
 }
 
 // example of using the checkCollisionSAT function
-inline void testCheckCollision(int caseid){
+inline void testCheckCollision(int caseid) {
 
 	//if (caseid == 1){// simple examples, suppose that boxes A and B are cubes and have no rotation
 	//	GamePhysics::Mat4 AM; AM.initTranslation(1.0, 1.0, 1.0);// box A at (1.0,1.0,1.0)

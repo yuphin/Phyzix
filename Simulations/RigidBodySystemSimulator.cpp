@@ -145,7 +145,10 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		/*	add_sphere({ 0.3,0,0 }, 0.5, 10);
 		add_sphere({ 0,2,0 }, 0.5, 10);*/
 		gravity = Vec3(0, -9.81f, 0);
-		addRigidBody({ 0.0,0,0 }, { 1,1,1 }, 10);
+		addRigidBody({ 0.0,2,0 }, { 0.3,0.3,0.3 }, 10);
+		addRigidBody({ 1.0,3,0 }, { 0.3,0.3,0.3 }, 10);
+		addRigidBody({ -1.0,4,0 }, { 0.3,0.3,0.3 }, 10);
+		addRigidBody({ 0.5,0,-0.5 }, { 1,1,1 }, 10);
 		add_sphere({ 0.3,2,0 }, 0.5, 10);
 		add_sphere({ 0.45,3,0 }, 0.5, 10);
 		add_sphere({ -0.45,4,-.5 }, 0.5, 10);

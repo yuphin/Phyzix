@@ -2,9 +2,13 @@
 
 RigidBodySystemSimulator::RigidBodySystemSimulator() {
 	m_iTestCase = 0;
+	collision_map[5] = collision_box_plane;
+	collision_map[6] = collision_sphere_plane;
+	collision_map[2] = collision_sphere_sphere;
+	collision_map[3] = collision_box_sphere;
 
 }
-
+static int num_run = 0;
 const char* RigidBodySystemSimulator::getTestCasesStr()
 {
 	return "Demo 1, Demo 2, Demo 3, Demo 4, Demo 5, Demo 6, Demo 7, Demo 8, Demo 9, Demo 10";
@@ -52,14 +56,10 @@ void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 		case RigidBodyType::CUBOID:
 		{
 			DUC->drawRigidBody(rigid_bodies[i].obj_to_world().toDirectXMatrix());
-
 		}
 		break;
 		case RigidBodyType::SPHERE:
 		{
-			if (m_iTestCase == 4) {
-				int a = 4;
-			}
 			const auto& rad = rigid_bodies[i].offset;
 			DUC->drawSphere(rigid_bodies[i].position, {rad,rad,rad});
 
@@ -70,7 +70,6 @@ void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 			if (render_planes) {
 				DUC->drawRigidBody(rigid_bodies[i].obj_to_world_plane_rendering().toDirectXMatrix());
 			}
-
 		}
 		break;
 		default:
@@ -142,8 +141,8 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		break;
 	case 8:
 		*timestep = 0.001f;
-		/*	add_sphere({ 0.3,0,0 }, 0.5, 10);
-		add_sphere({ 0,2,0 }, 0.5, 10);*/
+		add_sphere({ 0.3,0,0 }, 0.5, 10);
+		add_sphere({ 0,2,0 }, 0.5, 10);
 		gravity = Vec3(0, -9.81f, 0);
 		addRigidBody({ 0.0,2,0 }, { 0.3,0.3,0.3 }, 10);
 		addRigidBody({ 1.0,3,0 }, { 0.3,0.3,0.3 }, 10);
@@ -152,24 +151,26 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		add_sphere({ 0.3,2,0 }, 0.5, 10);
 		add_sphere({ 0.45,3,0 }, 0.5, 10);
 		add_sphere({ -0.45,4,-.5 }, 0.5, 10);
+		//addRigidBody({ 0.0,0,0 }, { 0.3,0.3,0.3 }, 10);
+		//add_sphere({ 0,2,0 }, 1, 10);
 		break;
 	case 9:
 		render_planes = true;
 		*timestep = 0.001f;
 		gravity = Vec3(0, -9.81f, 0);
 		rigid_bodies.push_back({ 0,{0.0995f,0.9950f,0} });
-		addRigidBody({ 0.0,4,0 }, { 0.3,0.3,0.3 }, 10);
-		addRigidBody({ 1.0,3,0 }, { 0.3,0.3,0.3 }, 10);
-		add_sphere({ 0.3,2,0 }, 0.3, 10);
-		add_sphere({ 0.45,3,0 }, 0.3, 10);
-		add_sphere({ 0.45,2.5,1 }, 0.3, 10);
-		add_sphere({ -0.45,1.5,-1 }, 0.3, 10);
+		addRigidBody({ 0.0,4,0 }, { 1,1,1 }, 10);
+		add_sphere({ 0,0,0 }, 0.3, 10);
+		//addRigidBody({ 1.0,3,0 }, { 0.3,0.3,0.3 }, 10);
+		//add_sphere({ 0.3,2,0 }, 0.3, 10);
+		//add_sphere({ 0.45,3,0 }, 0.3, 10);
+		//add_sphere({ 0.45,2.5,1 }, 0.3, 10);
+		//add_sphere({ -0.45,1.5,-1 }, 0.3, 10);
 
 	default:
 		break;
 	}
 	// Add plane
-
 	if (testCase != 9) {
 		rigid_bodies.push_back({ -1,{0,1,0} });
 	}
@@ -206,9 +207,11 @@ void RigidBodySystemSimulator::handle_collisions() {
 	CollisionData data;
 #pragma omp parallel for schedule(auto)
 	for (int i = 0; i < rigid_bodies.size() - 1; i++) {
+		
 		RigidBody& b1 = rigid_bodies[i];
 
 		for (int j = i + 1; j < rigid_bodies.size(); j++) {
+			
 			RigidBody& b2 = rigid_bodies[j];
 			// TODO: Vector is overkill here, fix
 			std::vector<RigidBody*> pairs = { &b1,&b2 };
@@ -219,37 +222,22 @@ void RigidBodySystemSimulator::handle_collisions() {
 
 				ci = checkCollisionSAT(pairs[0]->obj_to_world(), pairs[1]->obj_to_world(), &data);
 				resolve = ci && ci->is_valid;
-				if (ci->is_valid) {
+				if (resolve) {
 					ci->bodies[0] = &b1;
 					ci->bodies[1] = &b2;
 					ci->cp_rel[0] = ci->collision_point - b1.position;
 					ci->cp_rel[1] = ci->collision_point - b2.position;
 				}
-			}
-			else if (pairs[0]->type == RigidBodyType::CUBOID && pairs[1]->type == RigidBodyType::PLANE) {
+			}else {
+				int k = static_cast<int>(pairs[0]->type) | static_cast<int>(pairs[1]->type);
+				auto collision_func = collision_map[k];
 				Mat4 b1_world = pairs[0]->obj_to_world();
-				ci = collision_box_plane(pairs[0], pairs[1], b1_world, data);
+				ci = collision_func(pairs[0], pairs[1], b1_world, data);
 				resolve = ci && ci->is_valid;
 			}
-			else if (pairs[0]->type == RigidBodyType::SPHERE && pairs[1]->type == RigidBodyType::PLANE) {
-				Mat4 b1_world = pairs[0]->obj_to_world();
-				ci = collision_sphere_plane(pairs[0], pairs[1], b1_world, data);
-				resolve = ci && ci->is_valid;
-			}
-			else if (pairs[0]->type == RigidBodyType::SPHERE && pairs[1]->type == RigidBodyType::SPHERE) {
-				ci = collision_sphere_sphere(pairs[0], pairs[1], data);
-				resolve = ci && ci->is_valid;
-			}
-			else if (pairs[0]->type == RigidBodyType::CUBOID && pairs[1]->type == RigidBodyType::SPHERE) {
-				Mat4 b1_world = pairs[0]->obj_to_world();
-				ci = collision_box_sphere(pairs[0], pairs[1], b1_world, data);
-				resolve = ci && ci->is_valid;
-			}
+	
 			if (resolve) {
 				// Apply position change
-				if (pairs[0]->type == RigidBodyType::CUBOID && pairs[1]->type == RigidBodyType::SPHERE) {
-					int a = 4;
-				}
 				resolve_positions(data);
 				// Apply velocity change
 				resolve_velocities(data, ci, pairs);
@@ -263,6 +251,7 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 	 if (!running) {
 	 	return;
 	 }
+	 num_run++;
 
 	if (m_iTestCase == 3) {		
 		static std::mt19937 eng;
@@ -274,11 +263,6 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 			counter = 0;
 		}
 	}
-
-	handle_collisions();
-
-	//time_step *= 0.25;
-	//time_step = 0.0000001;
 	for (auto& rb : rigid_bodies) {
 		if (!rb.movable)
 			continue;
@@ -288,7 +272,6 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 		rb.orientation += time_step * 0.5f * rb.orientation * ang_vel;
 		rb.orientation = rb.orientation.unit();
 		rb.angular_momentum += time_step * rb.torque;
-		//rb.angular_momentum *= 0.999;
 		auto inv_inertia = rb.get_transformed_inertia(rb.inv_inertia_0);
 		rb.angular_vel = inv_inertia * rb.angular_momentum;
 	}
@@ -296,8 +279,8 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 	for (auto& rb : rigid_bodies) {
 		rb.force = 0;
 		rb.torque = 0;
+		
 	}
-
 	if (m_iTestCase == 0) {
 		auto& rb = rigid_bodies[0];
 		cout << "Linear Velocity: " << rb.linear_velocity << "\n";
@@ -306,6 +289,7 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 		cout << "Velocity at point (0.3, 0.5, 0.25): " << point_vel << "\n";
 		running = false;
 	}
+	handle_collisions();
 }
 
 void RigidBodySystemSimulator::onClick(int x, int y) {
@@ -347,7 +331,7 @@ void RigidBodySystemSimulator::addRigidBody(Vec3 position, Vec3 size, int mass) 
 
 void RigidBodySystemSimulator::add_sphere(const Vec3& pos, float radius, int mass) {
 	RigidBody sphere(radius, pos, mass);
-	rigid_bodies.emplace_back(sphere);
+	rigid_bodies.push_back(sphere);
 }
 
 
@@ -376,8 +360,9 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 
 	constexpr float angular_limit = 0.2f;
 	for (int iter = 0; iter < iter_cnt; iter++) {
-		auto max = 0.001f;
+		auto max = 0.01f;
 		int index = data.num_contacts;
+	
 		for (int i = 0; i < data.num_contacts; i++) {
 			if (data.contacts[i].penetration > max) {
 				max = data.contacts[i].penetration;
@@ -449,6 +434,7 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 				linear_delta[i] = collision_info->normal * linear_mov[i];
 
 				// Apply deltas
+			
 				collision_info->bodies[i]->position += collision_info->normal * linear_mov[i];
 				Quat q(angular_delta[i].x, angular_delta[i].y, angular_delta[i].z, 0);
 				//q *= collision_info->bodies[i]->orientation;
@@ -456,10 +442,11 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 				//std::cout << "Adjust pos & quat" << angular_delta[i].x <<" " <<angular_delta[i].y <<" " << angular_delta[i].z << std::endl;
 				//std::cout << "Angular velocity " << collision_info->bodies[i]->angular_vel.x << " " <<
 				//collision_info->bodies[i]->angular_vel.y <<" " << collision_info->bodies[i]->angular_vel.z << std::endl;
-				collision_info->bodies[i]->orientation += 0.5 * collision_info->bodies[i]->orientation * q;
-				collision_info->bodies[i]->orientation.x += angular_delta[i].x * 0.5;
+				//collision_info->bodies[i]->orientation += 0.5 * collision_info->bodies[i]->orientation * q;
+			/*	collision_info->bodies[i]->orientation.x += angular_delta[i].x * 0.5;
 				collision_info->bodies[i]->orientation.y += angular_delta[i].y * 0.5;
-				collision_info->bodies[i]->orientation.z += angular_delta[i].z * 0.5;
+				collision_info->bodies[i]->orientation.z += angular_delta[i].z * 0.5;*/
+				collision_info->bodies[i]->orientation.unit();
 				//printf("Orientation delta %f %f %f\n", angular_delta[i].x, angular_delta[i].y, angular_delta[i].z);
 			}
 		}

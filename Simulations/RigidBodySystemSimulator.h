@@ -4,6 +4,7 @@
 #include "RigidBody.h"
 #include "util/util.h"
 #include "collisionDetect.h"
+#include <unordered_map>
 //add your header for your rigid body system, for e.g.,
 //#include "rigidBodySystem.h" 
 
@@ -67,6 +68,8 @@ private:
 	float* timestep;
 	bool running;
 	bool render_planes;
+	std::unordered_map<uint32_t, Contact* (*)(
+		RigidBody*, RigidBody*, Mat4&, CollisionData&)> collision_map;
 
 };
 #endif

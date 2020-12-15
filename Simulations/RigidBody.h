@@ -4,9 +4,9 @@
 
 static constexpr int MAX_CONTACT_POINT = 16;
 enum class RigidBodyType {
-	CUBOID,
-	SPHERE,
-	PLANE
+	CUBOID = 1 << 0,
+	SPHERE = 1 << 1,
+	PLANE = 1 << 2
 };
 class RigidBody {
 public:
@@ -26,8 +26,8 @@ public:
 		this->inv_mass = 1.0f / mass;
 		this->mass = mass;
 		this->position = pos;
-		calc_inv_inertia_tensor();
 		this->type = type;
+		calc_inv_inertia_tensor();
 	}
 	RigidBody(const Vec3& position, const Vec3& size, int mass,
 		RigidBodyType type = RigidBodyType::CUBOID) {

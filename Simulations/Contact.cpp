@@ -4,10 +4,6 @@
 Contact* collision_box_plane(RigidBody* rb1, RigidBody* plane, Mat4& trs_a,
 	CollisionData& c_data) {
 	Contact* res = nullptr;
-	/*static Vec3 vtxs[8] = {
-		{1,1,1},{-1,1,1},{1,-1,1},{-1,-1,1},
-		{1,1,-1},{-1,1,-1},{1,-1,-1},{-1,-1,-1}
-	};*/
 	static Vec3 vtxs[8] = {
 	{0.5,0.5,0.5},{-0.5,0.5,0.5},{0.5,-0.5,0.5},{-0.5,-0.5,0.5},
 	{0.5,0.5,-0.5},{-0.5,0.5,-0.5},{0.5,-0.5,-0.5},{-0.5,-0.5,-0.5}
@@ -16,9 +12,9 @@ Contact* collision_box_plane(RigidBody* rb1, RigidBody* plane, Mat4& trs_a,
 	static constexpr float EPS = 0.01f;
 	for (int i = 0; i < 8; i++) {
 		auto vtx_pos = vtxs[i];
-		vtx_pos =  vtx_pos * trs_a;
+		vtx_pos = vtx_pos * trs_a;
 		auto vtx_dist = dot(vtx_pos, plane->normal);
-		if (vtx_dist  <= plane->offset) {
+		if (vtx_dist <= plane->offset) {
 			//printf("VTX DIST %f\n", vtx_dist);
 		}
 		if (vtx_dist <= plane->offset) {
@@ -35,7 +31,7 @@ Contact* collision_box_plane(RigidBody* rb1, RigidBody* plane, Mat4& trs_a,
 			contact.cp_idx = i;
 			if (contact.penetration > max_pen) {
 				res = &contact;
-				
+
 			}
 		}
 	}
@@ -59,8 +55,8 @@ Contact* collision_sphere_plane(RigidBody* sphere, RigidBody* plane, Mat4& trs_s
 	return res;
 }
 
-Contact* collision_sphere_sphere(RigidBody* s1, RigidBody* s2, CollisionData& c_data) {
-	Contact* res;
+Contact* collision_sphere_sphere(RigidBody* s1, RigidBody* s2, Mat4& trs_s1, CollisionData& c_data) {
+	Contact* res = nullptr;
 	Vec3 r_to_r = s1->position - s2->position;
 	auto size = norm(r_to_r);
 	if (size <= 0.0f || size >= s1->offset + s2->offset) {
@@ -89,36 +85,33 @@ static Vec3 fabs_vec(const Vec3& vec) {
 
 Contact* collision_box_sphere(RigidBody* b, RigidBody* s, Mat4& trs_b, CollisionData& c_data) {
 	// Reminder that s->offset is radius
-	static Vec3 vtxs[8] = {
-	{0.5,0.5,0.5},{-0.5,0.5,0.5},{0.5,-0.5,0.5},{-0.5,-0.5,0.5},
-	{0.5,0.5,-0.5},{-0.5,0.5,-0.5},{0.5,-0.5,-0.5},{-0.5,-0.5,-0.5}
-	};
-	Contact* res;
+	Contact* res = nullptr;
 	Vec3 box_local_pos = { 0,0,0 };
-	Vec3 sphere_pos_according_to_box_coord =  s->position * trs_b.inverse();
-	Vec3 dif = fabs_vec(sphere_pos_according_to_box_coord) - s->offset;
-	if (dif.x > b->size.x * 0.5 || dif.y > b->size.y * 0.5 || dif.z > b->size.z * 0.5) {
+	Vec3 sphere_pos_according_to_box_coord = s->position * trs_b.inverse();
+	Vec3 scaled_rad = Vec3(s->offset / b->size.x, s->offset / b->size.y, s->offset / b->size.z);
+	Vec3 dif = fabs_vec(sphere_pos_according_to_box_coord) - scaled_rad;
+	if (dif.x > 0.5 || dif.y > 0.5 || dif.z > 0.5) {
 		return nullptr;
 	}
 	Vec3 closest = Vec3();
 	float dist = sphere_pos_according_to_box_coord.x;
-	if (dist > b->size.x * 0.5) dist = b->size.x * 0.5;
-	if (dist < -b->size.x * 0.5) dist = -b->size.x * 0.5;
+	if (dist > 0.5) dist = 0.5;
+	if (dist < -0.5) dist = -0.5;
 	closest.x = dist;
 
 	dist = sphere_pos_according_to_box_coord.y;
-	if (dist > b->size.y * 0.5) dist = b->size.y * 0.5;
-	if (dist < -b->size.y * 0.5) dist = -b->size.y * 0.5;
+	if (dist > 0.5) dist = 0.5;
+	if (dist < -0.5) dist = -0.5;
 	closest.y = dist;
 
 	dist = sphere_pos_according_to_box_coord.z;
-	if (dist > b->size.z * 0.5) dist = b->size.z * 0.5;
-	if (dist < -b->size.z * 0.5) dist = -b->size.Z * 0.5;
+	if (dist > 0.5) dist = 0.5;
+	if (dist < -0.5) dist = -0.5;
 	closest.z = dist;
-	
+
 	auto tmp = closest - sphere_pos_according_to_box_coord;
 	dist = dot(tmp, tmp);
-	if (dist > s->offset * s->offset) return nullptr;
+	if (dist > dot(scaled_rad, scaled_rad)) return nullptr;
 
 	Vec3 point_world = closest * trs_b;
 	res = &c_data.contacts[c_data.num_contacts++];

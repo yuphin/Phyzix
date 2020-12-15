@@ -163,10 +163,11 @@ xcopy /Y "$(SolutionDir)Simulations\*.dds" "$(OutDir)*.dds"</Command>
       <AdditionalIncludeDirectories>$(SolutionDir)DirectXTK/Inc;$(SolutionDir)DXUT11/Core;$(SolutionDir)DXUT11/Optional;$(SolutionDir)Effects11/inc;$(SolutionDir)AntTweakBar/include;D:\Projects\VSProjects\Game Physics\Simulations\util\lib</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile />
       <PrecompiledHeaderOutputFile />
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -202,6 +203,7 @@ xcopy /Y "$(SolutionDir)Simulations\*.dds" "$(OutDir)*.dds"</Command>
       </PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>
       </PrecompiledHeaderOutputFile>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

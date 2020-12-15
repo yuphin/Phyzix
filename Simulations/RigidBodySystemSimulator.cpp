@@ -144,10 +144,10 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		add_sphere({ 0.3,0,0 }, 0.5, 10);
 		add_sphere({ 0,2,0 }, 0.5, 10);
 		gravity = Vec3(0, -9.81f, 0);
-		addRigidBody({ 0.0,2,0 }, { 0.3,0.3,0.3 }, 10);
-		addRigidBody({ 1.0,3,0 }, { 0.3,0.3,0.3 }, 10);
-		addRigidBody({ -1.0,4,0 }, { 0.3,0.3,0.3 }, 10);
-		addRigidBody({ 0.5,0,-0.5 }, { 1,1,1 }, 10);
+		addRigidBody({ -0.5,2,0 }, { 0.3,0.3,0.3 }, 10);
+		addRigidBody({ 1.0,3,1 }, { 0.3,0.3,0.3 }, 10);
+		addRigidBody({ -1.0,4,0.5 }, { 0.3,0.3,0.3 }, 10);
+		addRigidBody({ 0.5,1.5,-0.5 }, { 1,1,1 }, 10);
 		add_sphere({ 0.3,2,0 }, 0.5, 10);
 		add_sphere({ 0.45,3,0 }, 0.5, 10);
 		add_sphere({ -0.45,4,-.5 }, 0.5, 10);
@@ -360,7 +360,7 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 
 	constexpr float angular_limit = 0.2f;
 	for (int iter = 0; iter < iter_cnt; iter++) {
-		auto max = 0.01f;
+		auto max = 0.001f;
 		int index = data.num_contacts;
 	
 		for (int i = 0; i < data.num_contacts; i++) {

@@ -225,6 +225,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Contact.cpp" />
+    <ClCompile Include="DiffusionSimulator.cpp" />
     <ClCompile Include="MassSpringSystemSimulator.cpp" />
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="RigidBodySystemSimulator.cpp" />
@@ -235,8 +236,11 @@
   <ItemGroup>
     <ClInclude Include="collisionDetect.h" />
     <ClInclude Include="Contact.h" />
+    <ClInclude Include="DiffusionSimulator.h" />
     <ClInclude Include="DrawingUtilitiesClass.h" />
+    <ClInclude Include="general.h" />
     <ClInclude Include="MassSpringSystemSimulator.h" />
+    <ClInclude Include="pcgsolver.h" />
     <ClInclude Include="RigidBody.h" />
     <ClInclude Include="RigidBodySystemSimulator.h" />
     <ClInclude Include="Simulator.h" />
@@ -247,6 +251,7 @@
     <ClInclude Include="util\timer.h" />
     <ClInclude Include="util\util.h" />
     <ClInclude Include="util\vectorbase.h" />
+    <ClInclude Include="vectorbase.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="cloth.hlsl">

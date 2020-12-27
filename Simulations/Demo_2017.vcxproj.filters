@@ -33,6 +33,9 @@
     <ClCompile Include="Contact.cpp">
       <Filter>Simulator</Filter>
     </ClCompile>
+    <ClCompile Include="DiffusionSimulator.cpp">
+      <Filter>Simulator</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="collisionDetect.h">
@@ -76,6 +79,18 @@
     </ClInclude>
     <ClInclude Include="Contact.h">
       <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="DiffusionSimulator.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="general.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="pcgsolver.h">
+      <Filter>Utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="vectorbase.h">
+      <Filter>Utilities</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

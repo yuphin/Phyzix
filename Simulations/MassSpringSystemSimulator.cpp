@@ -190,7 +190,7 @@ void MassSpringSystemSimulator::init_resources(ID3D11Device* device) {
             printf("Error %s\n", err_blob->GetBufferPointer());
         }
     }
-    hr = CreateDDSTextureFromFile(device, L"4WeirdW.dds",
+    hr = CreateDDSTextureFromFile(device, L"cloth.dds",
                                   nullptr, &texture_view);
     if(FAILED(hr)) {
         printf("Failed to load texture\n");

@@ -38,6 +38,33 @@ Mat4 RigidBody::get_transformed_inertia(const Mat4& inertia) {
 	return rot * inertia * rot_transpose;
 }
 
+void RigidBody::make_plane(float offset, const Vec3& normal) {
+	this->offset = offset;
+	this->normal = normal;
+	inv_inertia_0 = 0;
+	inv_mass = 0;
+	type = RigidBodyType::PLANE;
+	movable = false;
+}
+
+void RigidBody::make_sphere(float radius, const Vec3& pos, int mass) {
+	this->offset = radius;
+	this->mass = mass;
+	this->position = pos;
+	inv_mass = 1.0f / mass;
+	type = RigidBodyType::SPHERE;
+	calc_inv_inertia_tensor();
+}
+
+void RigidBody::make_box(const Vec3& position, const Vec3& size, int mass) {
+	this->position = position;
+	this->size = size;
+	this->mass = mass;
+	inv_mass = 1.0f / mass;
+	type = RigidBodyType::CUBOID;
+	calc_inv_inertia_tensor();
+}
+
 void RigidBody::calc_inv_inertia_tensor() {
 	switch (type) {
 	case RigidBodyType::CUBOID:

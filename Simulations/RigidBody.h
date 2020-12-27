@@ -11,37 +11,12 @@ enum class RigidBodyType {
 class RigidBody {
 public:
 	// Subjected to change!
-	RigidBody(float offset, const Vec3& normal,
-		RigidBodyType type = RigidBodyType::PLANE) {
-		this->offset = offset;
-		this->normal = normal;
-		this->inv_mass = 0;
-		this->inv_inertia_0;
-		this->type = type;
-		movable = false;
-	}
-	RigidBody(float radius, const Vec3& pos, int mass, 
-		RigidBodyType type = RigidBodyType::SPHERE) {
-		this->offset = radius;
-		this->inv_mass = 1.0f / mass;
-		this->mass = mass;
-		this->position = pos;
-		this->type = type;
-		calc_inv_inertia_tensor();
-	}
-	RigidBody(const Vec3& position, const Vec3& size, int mass,
-		RigidBodyType type = RigidBodyType::CUBOID) {
-		this->position = position;
-		this->size = size;
-		this->mass = mass;
-		this->type = type;
-		inv_mass = 1.0f / mass;
-		calc_inv_inertia_tensor();
-	}
 	Mat4 obj_to_world();
 	Mat4 obj_to_world_plane_rendering();
 	Mat4 get_transformed_inertia(const Mat4& inertia);
-
+	void make_plane(float offset, const Vec3& normal);
+	void make_sphere(float radius, const Vec3& pos, int mass);
+	void make_box(const Vec3& position, const Vec3& size, int mass);
 	Vec3 position;
 	Vec3 size;
 	Vec3 linear_velocity;

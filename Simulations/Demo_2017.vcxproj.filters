@@ -36,6 +36,7 @@
     <ClCompile Include="DiffusionSimulator.cpp">
       <Filter>Simulator</Filter>
     </ClCompile>
+    <ClCompile Include="Sandbox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="collisionDetect.h">
@@ -92,6 +93,7 @@
     <ClInclude Include="vectorbase.h">
       <Filter>Utilities</Filter>
     </ClInclude>
+    <ClInclude Include="Sandbox.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utilities">

@@ -24,7 +24,8 @@ using namespace GamePhysics;
 //#define MASS_SPRING_SYSTEM
 //#define RIGID_BODY_SYSTEM
 //#define SPH_SYSTEM
-#define DIFFUSION_SYSTEM
+//#define DIFFUSION_SYSTEM
+#define SANDBOX
 
 #ifdef TEMPLATE_DEMO
 #include "TemplateSimulator.h"
@@ -38,9 +39,11 @@ using namespace GamePhysics;
 #ifdef SPH_SYSTEM
 //#include "SPHSystemSimulator.h"
 #endif
-
 #ifdef DIFFUSION_SYSTEM
 #include "DiffusionSimulator.h"
+#endif
+#ifdef SANDBOX
+#include "Sandbox.h"
 #endif
 
 
@@ -382,7 +385,12 @@ int main(int argc, char* argv[])
 #ifdef DIFFUSION_SYSTEM
 	g_pSimulator = new DiffusionSimulator();
 #endif
+#ifdef SANDBOX
+	g_pSimulator = new Sandbox();
+	((Sandbox*)g_pSimulator)->pass_time_step_variable(g_fTimestep);
+#endif
 	g_pSimulator->reset();
+
 
     // Init DXUT and create device
 	DXUTInit( true, true, NULL ); // Parse the command line, show msgboxes on error, no extra command line params

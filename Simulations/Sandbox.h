@@ -1,19 +1,12 @@
-#ifndef RIGIDBODYSYSTEMSIMULATOR_h
-#define RIGIDBODYSYSTEMSIMULATOR_h
+#pragma once
 #include "Simulator.h"
-#include "RigidBody.h"
 #include "util/util.h"
 #include "collisionDetect.h"
 #include <unordered_map>
-//add your header for your rigid body system, for e.g.,
-//#include "rigidBodySystem.h" 
-
-#define TESTCASEUSEDTORUNTEST 2
-
-class RigidBodySystemSimulator :public Simulator {
+class Sandbox : public Simulator {
 public:
 	// Construtors
-	RigidBodySystemSimulator();
+	Sandbox();
 
 	// Functions
 	const char* getTestCasesStr();
@@ -40,10 +33,10 @@ public:
 	void handle_collisions();
 	void add_torque(int i, Vec3 ang_velocity);
 	void pass_time_step_variable(float& time_step);
-	static void TW_CALL RigidBodySystemSimulator::get_gravity(void* value, void* clientData);
-	static void TW_CALL RigidBodySystemSimulator::set_gravity(const void* value, void* clientData);
-	static void TW_CALL RigidBodySystemSimulator::addRandomBox(void* value);
-	static void TW_CALL RigidBodySystemSimulator::addRandomSphere(void* value);
+	static void TW_CALL Sandbox::get_gravity(void* value, void* clientData);
+	static void TW_CALL Sandbox::set_gravity(const void* value, void* clientData);
+	static void TW_CALL Sandbox::addRandomBox(void* value);
+	static void TW_CALL Sandbox::addRandomSphere(void* value);
 
 private:
 	// Attributes
@@ -56,8 +49,8 @@ private:
 	Vec3 m_externalForce;
 	Vec3 mouse_force;
 	Vec3 gravity;
-	double bounciness = 0.6;
-	
+	double bounciness = 0.75;
+
 	// UI Attributes
 	Point2D mouse;
 	Point2D trackmouse;
@@ -67,10 +60,8 @@ private:
 	Plane plane;
 	DrawingUtilitiesClass* DUC;
 	float* timestep;
-	bool running;
 	bool render_planes;
 	std::unordered_map<uint32_t, Contact* (*)(
 		RigidBody*, RigidBody*, Mat4&, CollisionData&)> collision_map;
-
 };
-#endif
+

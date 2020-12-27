@@ -1,6 +1,6 @@
-#include "RigidBodySystemSimulator.h"
+#include "Sandbox.h"
 
-RigidBodySystemSimulator::RigidBodySystemSimulator() {
+Sandbox::Sandbox() {
 	m_iTestCase = 0;
 	collision_map[5] = collision_box_plane;
 	collision_map[6] = collision_sphere_plane;
@@ -9,12 +9,12 @@ RigidBodySystemSimulator::RigidBodySystemSimulator() {
 
 }
 static int num_run = 0;
-const char* RigidBodySystemSimulator::getTestCasesStr()
+const char* Sandbox::getTestCasesStr()
 {
-	return "Demo 1, Demo 2, Demo 3, Demo 4, Demo 5, Demo 6, Demo 7, Demo 8, Demo 9, Demo 10";
+	return "Many Bodies,2,3,4,5,6,Empty";
 }
 
-void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
+void Sandbox::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
 	TwAddVarRW(DUC->g_pTweakBar, "Render Planes", TW_TYPE_BOOLCPP, &render_planes, "");
 	TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, set_gravity, get_gravity, &gravity, "");
@@ -22,34 +22,34 @@ void RigidBodySystemSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	TwAddButton(DUC->g_pTweakBar, "Create Random Sphere", addRandomSphere, this, "");
 }
 
-void TW_CALL RigidBodySystemSimulator::addRandomBox(void* value) {
+void TW_CALL Sandbox::addRandomBox(void* value) {
 	static std::mt19937 eng;
 	static std::uniform_real_distribution<float> randomer(-1.5, 2);
-	((RigidBodySystemSimulator*) value)->add_box({ randomer(eng), 1.0, randomer(eng) }, { 0.3, 0.3, 0.3 }, 2);
+	((Sandbox*)value)->add_box({ randomer(eng), 1.0, randomer(eng) }, { 0.3, 0.3, 0.3 }, 2);
 }
 
-void TW_CALL RigidBodySystemSimulator::addRandomSphere(void* value) {
+void TW_CALL Sandbox::addRandomSphere(void* value) {
 	static std::mt19937 eng;
 	static std::uniform_real_distribution<float> randomer(-1.5, 2);
-	((RigidBodySystemSimulator*)value)->add_sphere({ randomer(eng), 1.0, randomer(eng) }, 0.3, 2);
+	((Sandbox*)value)->add_sphere({ randomer(eng), 1.0, randomer(eng) }, 0.3, 2);
 }
 
 
-void TW_CALL RigidBodySystemSimulator::get_gravity(void* value, void* clientData) {
-	static_cast<float*> (value)[0] = static_cast<const Vec3*>(clientData)->x;
-	static_cast<float*> (value)[1] = static_cast<const Vec3*>(clientData)->y;
-	static_cast<float*> (value)[2] = static_cast<const Vec3*>(clientData)->z;
+void TW_CALL Sandbox::get_gravity(void* value, void* client_data) {
+	static_cast<float*> (value)[0] = static_cast<const Vec3*>(client_data)->x;
+	static_cast<float*> (value)[1] = static_cast<const Vec3*>(client_data)->y;
+	static_cast<float*> (value)[2] = static_cast<const Vec3*>(client_data)->z;
 }
 
-void TW_CALL RigidBodySystemSimulator::set_gravity(const void* value, void* clientData) {
-	static_cast<Vec3*> (clientData)->x = static_cast<const float*> (value)[0];
-	static_cast<Vec3*> (clientData)->y = static_cast<const float*> (value)[1];
-	static_cast<Vec3*> (clientData)->z = static_cast<const float*> (value)[2];
+void TW_CALL Sandbox::set_gravity(const void* value, void* client_data) {
+	static_cast<Vec3*> (client_data)->x = static_cast<const float*> (value)[0];
+	static_cast<Vec3*> (client_data)->y = static_cast<const float*> (value)[1];
+	static_cast<Vec3*> (client_data)->z = static_cast<const float*> (value)[2];
 }
 
-void RigidBodySystemSimulator::reset() {}
+void Sandbox::reset() {}
 
-void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
+void Sandbox::drawFrame(ID3D11DeviceContext* context) {
 	DUC->setUpLighting(Vec3(0, 0, 0), 0.4 * Vec3(1, 1, 1), 2000.0, Vec3(0.5, 0.5, 0.5));
 	for (int i = 0; i < rigid_bodies.size(); i++) {
 		switch (rigid_bodies[i].type) {
@@ -61,7 +61,7 @@ void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 		case RigidBodyType::SPHERE:
 		{
 			const auto& rad = rigid_bodies[i].offset;
-			DUC->drawSphere(rigid_bodies[i].position, {rad,rad,rad});
+			DUC->drawSphere(rigid_bodies[i].position, { rad,rad,rad });
 
 		}
 		break;
@@ -78,68 +78,15 @@ void RigidBodySystemSimulator::drawFrame(ID3D11DeviceContext* context) {
 	}
 }
 
-void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
+void Sandbox::notifyCaseChanged(int testCase) {
 	m_iTestCase = testCase;
 	rigid_bodies.clear();
-	running = true;
 	gravity = 0;
 	mouse_force = 0;
 	render_planes = false;
 
 	switch (testCase) {
 	case 0:
-		*timestep = 2.0f;
-		add_box({ 0, 0, 0 }, { 1, 0.6, 0.5 }, 2);
-		applyForceOnBody(0, { 0.3, 0.5, 0.25 }, { 1, 1,0 });
-		break;
-	case 1:
-		*timestep = 0.01f;
-		add_box({ 0, 0, 0 }, { 1, 1, 1 }, 2);
-		break;
-	case 2:
-		*timestep = 0.005f;
-		add_box({ 0.25, -0.5, 0 }, { 1, 0.5, 0.5 }, 2);
-		add_box({ -0.25, 1, 0 }, { 1, 0.5, 0.5 }, 2);
-		applyForceOnBody(0, { 0.25, -0.5, 0 }, { 0, 10,0 });
-		applyForceOnBody(1, { -0.25, 1, 0 }, { 0, -35,0 });
-		break;
-	case 3:
-		*timestep = 0.001f;
-		bounciness = 0.3;
-		gravity = Vec3(0, -9.81f, 0);
-		break;
-	case 4:
-
-		gravity = Vec3(0, -9.81f, 0);
-		*timestep = 0.001f;
-		/*	addRigidBody({ 0, 1, 0 }, { 1, 1, 1 }, 10);
-		addRigidBody({ 2, 1, 0 }, { 1, 1, 1 }, 10);
-		applyForceOnBody(0, { 0, 1.0, 0.0 }, { 100000,0,0 });
-
-		applyForceOnBody(1, { 2, 1, 0.0 }, { -100000,0,0 });*/
-		add_box({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
-		add_box({ 0, 2, 0 }, { 1, 1, 1 }, 10);
-		applyForceOnBody(1, { 0.0, 0.0, 0.0 }, { 0,-500,0 });
-		break;
-	case 5:
-		*timestep = 0.001f;
-		gravity = Vec3(0, -9.81f, 0);
-		add_box({ 0, 0, 0 }, { 1, 1, 1 }, 10);
-		//applyForceOnBody(0, { 0.0, 0.5, 0.5 }, { 1,1,0 });
-		setOrientationOf(0, Quat(Vec3(0.5f, 0.8f, 1.0f), (float)(M_PI) * 0.5f));
-		add_torque(0, { 5000, 5000, 5000 });
-		break;
-	case 6:
-		*timestep = 0.001f;
-		gravity = Vec3(0, -9.81f, 0);
-		add_sphere({ 0,0,0 }, 0.5, 10);
-		break;
-	case 7:
-		*timestep = 0.001f;
-		gravity = Vec3(0, -9.81f, 0);
-		add_box({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
-		break;
-	case 8:
 		*timestep = 0.001f;
 		add_sphere({ 0.3,0,0 }, 0.5, 10);
 		add_sphere({ 0,2,0 }, 0.5, 10);
@@ -151,44 +98,67 @@ void RigidBodySystemSimulator::notifyCaseChanged(int testCase) {
 		add_sphere({ 0.3,2,0 }, 0.5, 10);
 		add_sphere({ 0.45,3,0 }, 0.5, 10);
 		add_sphere({ -0.45,4,-.5 }, 0.5, 10);
-		//addRigidBody({ 0.0,0,0 }, { 0.3,0.3,0.3 }, 10);
-		//add_sphere({ 0,2,0 }, 1, 10);
 		break;
-	case 9:
-		render_planes = true;
+	case 1:
+		*timestep = 0.005f;
+		add_box({ 0.25, -0.5, 0 }, { 1, 0.5, 0.5 }, 2);
+		add_box({ -0.25, 1, 0 }, { 1, 0.5, 0.5 }, 2);
+		applyForceOnBody(0, { 0.25, -0.5, 0 }, { 0, 10,0 });
+		applyForceOnBody(1, { -0.25, 1, 0 }, { 0, -35,0 });
+		break;
+	case 2:
+		gravity = Vec3(0, -9.81f, 0);
+		*timestep = 0.001f;
+		/*	addRigidBody({ 0, 1, 0 }, { 1, 1, 1 }, 10);
+		addRigidBody({ 2, 1, 0 }, { 1, 1, 1 }, 10);
+		applyForceOnBody(0, { 0, 1.0, 0.0 }, { 100000,0,0 });
+		applyForceOnBody(1, { 2, 1, 0.0 }, { -100000,0,0 });*/
+		add_box({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
+		add_box({ 0, 2, 0 }, { 1, 1, 1 }, 10);
+		applyForceOnBody(1, { 0.0, 0.0, 0.0 }, { 0,-500,0 });
+		break;
+	case 3:
 		*timestep = 0.001f;
 		gravity = Vec3(0, -9.81f, 0);
-		add_plane(0,{0.0995f,0.9950f,0});
-		add_box({ 0.0,4,0 }, { 1,1,1 }, 10);
-		add_sphere({ 0,0,0 }, 0.3, 10);
-		//addRigidBody({ 1.0,3,0 }, { 0.3,0.3,0.3 }, 10);
-		//add_sphere({ 0.3,2,0 }, 0.3, 10);
-		//add_sphere({ 0.45,3,0 }, 0.3, 10);
-		//add_sphere({ 0.45,2.5,1 }, 0.3, 10);
-		//add_sphere({ -0.45,1.5,-1 }, 0.3, 10);
-
+		add_box({ 0, 0, 0 }, { 1, 1, 1 }, 10);
+		//applyForceOnBody(0, { 0.0, 0.5, 0.5 }, { 1,1,0 });
+		setOrientationOf(0, Quat(Vec3(0.5f, 0.8f, 1.0f), (float)(M_PI) * 0.5f));
+		add_torque(0, { 5000, 5000, 5000 });
+		break;
+	case 4:
+		*timestep = 0.001f;
+		gravity = Vec3(0, -9.81f, 0);
+		add_sphere({ 0,0,0 }, 0.5, 10);
+		break;
+	case 5:
+		*timestep = 0.001f;
+		gravity = Vec3(0, -9.81f, 0);
+		add_box({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
+		break;
+	case 6:
+		*timestep = 0.001f;
+		bounciness = 0.3;
+		gravity = Vec3(0, -9.81f, 0);
+		break;
 	default:
 		break;
 	}
-	// Add plane
-	if (testCase != 9) {
-		add_plane(-1,{0,1,0});
-	}
+	add_plane(-1, { 0,1,0 });
 }
 
-void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {
-	Point2D mouseDiff;
-	mouseDiff.x = trackmouse.x - old_trackmouse.x;
-	mouseDiff.y = trackmouse.y - old_trackmouse.y;
-	if (mouseDiff.x != 0 || mouseDiff.y != 0) {
-		Mat4 worldViewInv = Mat4(DUC->g_camera.GetWorldMatrix() * DUC->g_camera.GetViewMatrix());
-		worldViewInv = worldViewInv.inverse();
-		Vec3 inputView = Vec3((float)mouseDiff.x, (float)-mouseDiff.y, 0);
-		Vec3 inputWorld = worldViewInv.transformVectorNormal(inputView);
+void Sandbox::externalForcesCalculations(float timeElapsed) {
+	Point2D mouse_diff;
+	mouse_diff.x = trackmouse.x - old_trackmouse.x;
+	mouse_diff.y = trackmouse.y - old_trackmouse.y;
+	if (mouse_diff.x != 0 || mouse_diff.y != 0) {
+		Mat4 world_view_inv = Mat4(DUC->g_camera.GetWorldMatrix() * DUC->g_camera.GetViewMatrix());
+		world_view_inv = world_view_inv.inverse();
+		Vec3 input_view = Vec3((float)mouse_diff.x, (float)-mouse_diff.y, 0);
+		Vec3 input_world = world_view_inv.transformVectorNormal(input_view);
 		// find a proper scale!
 		float inputScale = 0.0001f * (0.01 / *timestep);
-		inputWorld = inputWorld * inputScale;
-		mouse_force = inputWorld;
+		input_world = input_world * inputScale;
+		mouse_force = input_world;
 	}
 	else {
 		mouse_force = {};
@@ -198,7 +168,7 @@ void RigidBodySystemSimulator::externalForcesCalculations(float timeElapsed) {
 	}
 }
 
-void RigidBodySystemSimulator::handle_collisions() {
+void Sandbox::handle_collisions() {
 	if (rigid_bodies.size() < 2) {
 		return;
 	}
@@ -207,11 +177,11 @@ void RigidBodySystemSimulator::handle_collisions() {
 	CollisionData data;
 #pragma omp parallel for schedule(auto)
 	for (int i = 0; i < rigid_bodies.size() - 1; i++) {
-		
+
 		RigidBody& b1 = rigid_bodies[i];
 
 		for (int j = i + 1; j < rigid_bodies.size(); j++) {
-			
+
 			RigidBody& b2 = rigid_bodies[j];
 			// TODO: Vector is overkill here, fix
 			std::vector<RigidBody*> pairs = { &b1,&b2 };
@@ -228,14 +198,15 @@ void RigidBodySystemSimulator::handle_collisions() {
 					ci->cp_rel[0] = ci->collision_point - b1.position;
 					ci->cp_rel[1] = ci->collision_point - b2.position;
 				}
-			}else {
+			}
+			else {
 				int k = static_cast<int>(pairs[0]->type) | static_cast<int>(pairs[1]->type);
 				auto collision_func = collision_map[k];
 				Mat4 b1_world = pairs[0]->obj_to_world();
 				ci = collision_func(pairs[0], pairs[1], b1_world, data);
 				resolve = ci && ci->is_valid;
 			}
-	
+
 			if (resolve) {
 				// Apply position change
 				resolve_positions(data);
@@ -247,13 +218,9 @@ void RigidBodySystemSimulator::handle_collisions() {
 	}
 }
 
-void RigidBodySystemSimulator::simulateTimestep(float time_step) {
-	 if (!running) {
-	 	return;
-	 }
-	 num_run++;
-
-	if (m_iTestCase == 3) {		
+void Sandbox::simulateTimestep(float time_step) {
+	num_run++;
+	if (m_iTestCase == 3) {
 		static std::mt19937 eng;
 		static std::uniform_real_distribution<float> randomer(-1.5, 2);
 		static int counter = 0;
@@ -279,81 +246,73 @@ void RigidBodySystemSimulator::simulateTimestep(float time_step) {
 	for (auto& rb : rigid_bodies) {
 		rb.force = 0;
 		rb.torque = 0;
-		
+
 	}
-	if (m_iTestCase == 0) {
-		auto& rb = rigid_bodies[0];
-		cout << "Linear Velocity: " << rb.linear_velocity << "\n";
-		cout << "Angular Velocity: " << rb.angular_vel << "\n";
-		auto point_vel = rb.linear_velocity + cross(rb.angular_vel, Vec3(0.3, 0.5, 0.25));
-		cout << "Velocity at point (0.3, 0.5, 0.25): " << point_vel << "\n";
-		running = false;
-	}
+
 	handle_collisions();
 }
 
-void RigidBodySystemSimulator::onClick(int x, int y) {
+void Sandbox::onClick(int x, int y) {
 	trackmouse.x = x;
 	trackmouse.y = y;
 }
 
-void RigidBodySystemSimulator::onMouse(int x, int y) {
+void Sandbox::onMouse(int x, int y) {
 	old_trackmouse.x = x;
 	old_trackmouse.y = y;
 	trackmouse.x = x;
 	trackmouse.y = y;
 }
 
-int RigidBodySystemSimulator::getNumberOfRigidBodies() {
+int Sandbox::getNumberOfRigidBodies() {
 	return rigid_bodies.size();
 }
 
-Vec3 RigidBodySystemSimulator::getPositionOfRigidBody(int i) {
+Vec3 Sandbox::getPositionOfRigidBody(int i) {
 	return rigid_bodies[i].position;
 }
 
-Vec3 RigidBodySystemSimulator::getLinearVelocityOfRigidBody(int i) {
+Vec3 Sandbox::getLinearVelocityOfRigidBody(int i) {
 	return rigid_bodies[i].linear_velocity;
 }
 
-Vec3 RigidBodySystemSimulator::getAngularVelocityOfRigidBody(int i) {
+Vec3 Sandbox::getAngularVelocityOfRigidBody(int i) {
 	return rigid_bodies[i].angular_vel;
 }
 
-void RigidBodySystemSimulator::applyForceOnBody(int i, Vec3 loc, Vec3 force) {
+void Sandbox::applyForceOnBody(int i, Vec3 loc, Vec3 force) {
 	rigid_bodies[i].force += force;
 	rigid_bodies[i].torque += cross((loc - rigid_bodies[i].position), force);
 }
 
-void RigidBodySystemSimulator::add_box(Vec3 position, Vec3 size, int mass) {
+void Sandbox::add_box(Vec3 position, Vec3 size, int mass) {
 	RigidBody box;
 	box.make_box(position, size, mass);
 	rigid_bodies.push_back(box);
 }
 
-void RigidBodySystemSimulator::add_sphere(const Vec3& pos, float radius, int mass) {
+void Sandbox::add_sphere(const Vec3& pos, float radius, int mass) {
 	RigidBody sphere;
 	sphere.make_sphere(radius, pos, mass);
 	rigid_bodies.push_back(sphere);
 }
 
-void RigidBodySystemSimulator::add_plane(float offset, const Vec3& normal) {
+void Sandbox::add_plane(float offset, const Vec3& normal) {
 	RigidBody plane;
 	plane.make_plane(offset, normal);
 	rigid_bodies.push_back(plane);
 
 }
 
-
-void RigidBodySystemSimulator::setOrientationOf(int i, Quat orientation) {
+void Sandbox::setOrientationOf(int i, Quat orientation) {
 	rigid_bodies[i].orientation = orientation;
 }
 
-void RigidBodySystemSimulator::setVelocityOf(int i, Vec3 velocity) {
+void Sandbox::setVelocityOf(int i, Vec3 velocity) {
 	rigid_bodies[i].linear_velocity = velocity;
 }
 
-void RigidBodySystemSimulator::add_torque(int i, Vec3 ang_accelaration) {
+void Sandbox::add_torque(int i, Vec3 ang_accelaration) {
 
 	auto inertia = rigid_bodies[i].get_transformed_inertia(
 		rigid_bodies[i].inv_inertia_0.inverse()
@@ -361,7 +320,7 @@ void RigidBodySystemSimulator::add_torque(int i, Vec3 ang_accelaration) {
 	rigid_bodies[i].torque += inertia * ang_accelaration;
 }
 
-void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
+void Sandbox::resolve_positions(CollisionData& data) {
 	// Apply positional change
 	auto iter_cnt = data.num_contacts == 1 ? 1 : 4 * data.num_contacts;
 	Contact* collision_info;
@@ -372,7 +331,7 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 	for (int iter = 0; iter < iter_cnt; iter++) {
 		auto max = 0.001f;
 		int index = data.num_contacts;
-	
+
 		for (int i = 0; i < data.num_contacts; i++) {
 			if (data.contacts[i].penetration > max) {
 				max = data.contacts[i].penetration;
@@ -408,6 +367,7 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 				total_inertia += angular_inertia[i] + linear_inertia[i];
 			}
 		}
+
 		for (int i = 0; i < 2; i++) {
 			if (collision_info->bodies[i]) {
 				auto sign = i == 0 ? 1 : -1;
@@ -421,14 +381,12 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 					auto tot = angular_mov[i] + linear_mov[i];
 					angular_mov[i] = -max_angle;
 					linear_mov[i] = tot - angular_mov[i];
-
 				}
 				else if (angular_mov[i] > max_angle) {
 					auto tot = angular_mov[i] + linear_mov[i];
 					angular_mov[i] = max_angle;
 					linear_mov[i] = tot - angular_mov[i];
 				}
-
 				if (angular_mov[i]) {
 					Mat4 inv_inertia = collision_info->bodies[i]->get_transformed_inertia(
 						collision_info->bodies[i]->inv_inertia_0
@@ -439,10 +397,10 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 				else {
 					angular_delta[i] = 0;
 				}
-
 				linear_delta[i] = collision_info->normal * linear_mov[i];
 				// Apply deltas
 				collision_info->bodies[i]->position += collision_info->normal * linear_mov[i];
+				// Note : Rotating contact points doesn't work properly with high bounciness
 #define ORIENT_BODY 0
 #if ORIENT_BODY == 1
 				Quat q(angular_delta[i].x, angular_delta[i].y, angular_delta[i].z, 0);
@@ -474,7 +432,7 @@ void RigidBodySystemSimulator::resolve_positions(CollisionData& data) {
 	}
 }
 
-void RigidBodySystemSimulator::resolve_velocities(CollisionData& data, Contact* best_col,
+void Sandbox::resolve_velocities(CollisionData& data, Contact* best_col,
 	const std::vector<RigidBody*>& pairs) {
 	auto iter_cnt = data.num_contacts == 1 ? 1 : 4 * data.num_contacts;
 	Vec3 angular_mom_delta[2] = { Vec3(), Vec3() };
@@ -540,13 +498,14 @@ void RigidBodySystemSimulator::resolve_velocities(CollisionData& data, Contact* 
 	}
 }
 
-void RigidBodySystemSimulator::calc_after_col_vel(Contact* contact, float delta_vel,
+void Sandbox::calc_after_col_vel(Contact* contact, float delta_vel,
 	const std::vector<RigidBody*>& pairs) {
 	contact->relative_vel = delta_vel;
 	contact->expected_vel = -(1 + bounciness) * delta_vel;
 }
 
-void RigidBodySystemSimulator::pass_time_step_variable(float& time_step) {
+void Sandbox::pass_time_step_variable(float& time_step) {
 	timestep = &time_step;
 }
+
 

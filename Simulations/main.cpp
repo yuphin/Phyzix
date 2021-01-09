@@ -362,7 +362,7 @@ int main(int argc, char* argv[])
 	// Init Drawing Class
 	g_pDUC = new DrawingUtilitiesClass();
     // Init camera
- 	XMFLOAT3 eye(0.0f, 0.4f, 8.0f);
+ 	XMFLOAT3 eye(0.0f, 0.4f, -8.0f);
 	XMFLOAT3 lookAt(0.0f, 0.0f, 0.0f);
 	g_pDUC->g_camera.SetViewParams(XMLoadFloat3(&eye), XMLoadFloat3(&lookAt));
 	g_pDUC-> g_camera.SetButtonMasks(MOUSE_MIDDLE_BUTTON, MOUSE_WHEEL, MOUSE_RIGHT_BUTTON);
@@ -384,6 +384,7 @@ int main(int argc, char* argv[])
 #endif
 #ifdef DIFFUSION_SYSTEM
 	g_pSimulator = new DiffusionSimulator();
+	static_cast<DiffusionSimulator*>(g_pSimulator)->pass_time_step_variable(g_fTimestep);
 #endif
 #ifdef SANDBOX
 	g_pSimulator = new Sandbox();

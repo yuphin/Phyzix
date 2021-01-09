@@ -25,14 +25,14 @@ public:
 
 private:
 	// Attributes
-	Vec3  m_vfMovableObjectPos;
-	Vec3  m_vfMovableObjectFinalPos;
-	Vec3  m_vfRotate;
+	Vec3  movable_obj_pos;
+	Vec3  movable_obj_final_pos;
+	Vec3  rotate;
 	int   m_iNumSpheres;
 	float m_fSphereSize;
-	Point2D m_mouse;
-	Point2D m_trackmouse;
-	Point2D m_oldtrackmouse;
+	Point2D mouse;
+	Point2D track_mouse;
+	Point2D old_track_mouse;
 };
 
 #endif

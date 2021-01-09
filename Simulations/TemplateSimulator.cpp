@@ -3,9 +3,9 @@
 TemplateSimulator::TemplateSimulator()
 {
 	m_iTestCase = 0;
-	m_vfMovableObjectPos = Vec3();
-	m_vfMovableObjectFinalPos = Vec3();
-	m_vfRotate = Vec3();
+	movable_obj_pos = Vec3();
+	movable_obj_final_pos = Vec3();
+	rotate = Vec3();
 	m_iNumSpheres    = 100;
 	m_fSphereSize    = 0.05f;
 }
@@ -15,9 +15,9 @@ const char * TemplateSimulator::getTestCasesStr(){
 }
 
 void TemplateSimulator::reset(){
-		m_mouse.x = m_mouse.y = 0;
-		m_trackmouse.x = m_trackmouse.y = 0;
-		m_oldtrackmouse.x = m_oldtrackmouse.y = 0;
+		mouse.x = mouse.y = 0;
+		track_mouse.x = track_mouse.y = 0;
+		old_track_mouse.x = old_track_mouse.y = 0;
 }
 
 void TemplateSimulator::initUI(DrawingUtilitiesClass * DUC)
@@ -42,8 +42,8 @@ void TemplateSimulator::notifyCaseChanged(int testCase)
 	{
 	case 0:
 		cout << "Teapot !\n";
-		m_vfMovableObjectPos = Vec3(0, 0, 0);
-		m_vfRotate = Vec3(0, 0, 0);
+		movable_obj_pos = Vec3(0, 0, 0);
+		rotate = Vec3(0, 0, 0);
 		break;
 	case 1:
 		cout << "Random Object!\n";
@@ -63,8 +63,8 @@ void TemplateSimulator::externalForcesCalculations(float timeElapsed)
 {
 	// Apply the mouse deltas to g_vfMovableObjectPos (move along cameras view plane)
 	Point2D mouseDiff;
-	mouseDiff.x = m_trackmouse.x - m_oldtrackmouse.x;
-	mouseDiff.y = m_trackmouse.y - m_oldtrackmouse.y;
+	mouseDiff.x = track_mouse.x - old_track_mouse.x;
+	mouseDiff.y = track_mouse.y - old_track_mouse.y;
 	if (mouseDiff.x != 0 || mouseDiff.y != 0)
 	{
 		Mat4 worldViewInv = Mat4(DUC->g_camera.GetWorldMatrix() * DUC->g_camera.GetViewMatrix());
@@ -74,10 +74,10 @@ void TemplateSimulator::externalForcesCalculations(float timeElapsed)
 		// find a proper scale!
 		float inputScale = 0.001f;
 		inputWorld = inputWorld * inputScale;
-		m_vfMovableObjectPos = m_vfMovableObjectFinalPos + inputWorld;
+		movable_obj_pos = movable_obj_final_pos + inputWorld;
 	}
 	else {
-		m_vfMovableObjectFinalPos = m_vfMovableObjectPos;
+		movable_obj_final_pos = movable_obj_pos;
 	}
 }
 
@@ -88,12 +88,12 @@ void TemplateSimulator::simulateTimestep(float timeStep)
 	{// handling different cases
 	case 0:
 		// rotate the teapot
-		m_vfRotate.x += timeStep;
-		if (m_vfRotate.x > 2 * M_PI) m_vfRotate.x -= 2.0f * (float)M_PI;
-		m_vfRotate.y += timeStep;
-		if (m_vfRotate.y > 2 * M_PI) m_vfRotate.y -= 2.0f * (float)M_PI;
-		m_vfRotate.z += timeStep;
-		if (m_vfRotate.z > 2 * M_PI) m_vfRotate.z -= 2.0f * (float)M_PI;
+		rotate.x += timeStep;
+		if (rotate.x > 2 * M_PI) rotate.x -= 2.0f * (float)M_PI;
+		rotate.y += timeStep;
+		if (rotate.y > 2 * M_PI) rotate.y -= 2.0f * (float)M_PI;
+		rotate.z += timeStep;
+		if (rotate.z > 2 * M_PI) rotate.z -= 2.0f * (float)M_PI;
 
 		break;
 	default:
@@ -116,7 +116,7 @@ void TemplateSimulator::drawSomeRandomObjects()
 void TemplateSimulator::drawMovableTeapot()
 {
 	DUC->setUpLighting(Vec3(),0.4*Vec3(1,1,1),100,0.6*Vec3(0.97,0.86,1));
-	DUC->drawTeapot(m_vfMovableObjectPos,m_vfRotate,Vec3(0.5,0.5,0.5));
+	DUC->drawTeapot(movable_obj_pos,rotate,Vec3(0.5,0.5,0.5));
 }
 
 void TemplateSimulator::drawTriangle()
@@ -136,14 +136,14 @@ void TemplateSimulator::drawFrame(ID3D11DeviceContext* pd3dImmediateContext)
 
 void TemplateSimulator::onClick(int x, int y)
 {
-	m_trackmouse.x = x;
-	m_trackmouse.y = y;
+	track_mouse.x = x;
+	track_mouse.y = y;
 }
 
 void TemplateSimulator::onMouse(int x, int y)
 {
-	m_oldtrackmouse.x = x;
-	m_oldtrackmouse.y = y;
-	m_trackmouse.x = x;
-	m_trackmouse.y = y;
+	old_track_mouse.x = x;
+	old_track_mouse.y = y;
+	track_mouse.x = x;
+	track_mouse.y = y;
 }

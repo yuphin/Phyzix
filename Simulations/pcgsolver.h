@@ -480,27 +480,27 @@ struct SparseColumnLowerFactor
 // entry from the original matrix, the original matrix entry is used instead.
 
 template<class T>
-void factor_modified_incomplete_cholesky0(const SparseMatrix<T> &matrix, SparseColumnLowerFactor<T> &factor,
+void factor_modified_incomplete_cholesky0(const SparseMatrix<T> &matrix, SparseColumnLowerFactor<T> &alpha,
                                           T modification_parameter=0.97, T min_diagonal_ratio=0.25)
 {
    // first copy lower triangle of matrix into factor (Note: assuming A is symmetric of course!)
-   factor.resize(matrix.n);
-   zero(factor.invdiag); // important: eliminate old values from previous solves!
-   factor.value.resize(0);
-   factor.rowindex.resize(0);
-   zero(factor.adiag);
+   alpha.resize(matrix.n);
+   zero(alpha.invdiag); // important: eliminate old values from previous solves!
+   alpha.value.resize(0);
+   alpha.rowindex.resize(0);
+   zero(alpha.adiag);
    for(int i=0; i<matrix.n; ++i){
-      factor.colstart[i]=(int)factor.rowindex.size();
+      alpha.colstart[i]=(int)alpha.rowindex.size();
       for(int j=0; j<(int)matrix.index[i].size(); ++j){
          if(matrix.index[i][j]>i){
-            factor.rowindex.push_back(matrix.index[i][j]);
-            factor.value.push_back(matrix.value[i][j]);
+            alpha.rowindex.push_back(matrix.index[i][j]);
+            alpha.value.push_back(matrix.value[i][j]);
          }else if(matrix.index[i][j]==i){
-            factor.invdiag[i]=factor.adiag[i]=matrix.value[i][j];
+            alpha.invdiag[i]=alpha.adiag[i]=matrix.value[i][j];
          }
       }
    }
-   factor.colstart[matrix.n]=(int)factor.rowindex.size();
+   alpha.colstart[matrix.n]=(int)alpha.rowindex.size();
    // now do the incomplete factorization (figure out numerical values)
 
    // MATLAB code:
@@ -520,64 +520,64 @@ void factor_modified_incomplete_cholesky0(const SparseMatrix<T> &matrix, SparseC
    // end
 
    for(int k=0; k<matrix.n; ++k){
-      if(factor.adiag[k]==0) continue; // null row/column
+      if(alpha.adiag[k]==0) continue; // null row/column
       // figure out the final L(k,k) entry
-      if(factor.invdiag[k]<min_diagonal_ratio*factor.adiag[k])
-         factor.invdiag[k]=1/sqrt(factor.adiag[k]); // drop to Gauss-Seidel here if the pivot looks dangerously small
+      if(alpha.invdiag[k]<min_diagonal_ratio*alpha.adiag[k])
+         alpha.invdiag[k]=1/sqrt(alpha.adiag[k]); // drop to Gauss-Seidel here if the pivot looks dangerously small
       else
-         factor.invdiag[k]=1/sqrt(factor.invdiag[k]);
+         alpha.invdiag[k]=1/sqrt(alpha.invdiag[k]);
       // finalize the k'th column L(:,k)
-      for(int p=factor.colstart[k]; p<factor.colstart[k+1]; ++p){
-         factor.value[p]*=factor.invdiag[k];
+      for(int p=alpha.colstart[k]; p<alpha.colstart[k+1]; ++p){
+         alpha.value[p]*=alpha.invdiag[k];
       }
       // incompletely eliminate L(:,k) from future columns, modifying diagonals
-      for(int p=factor.colstart[k]; p<factor.colstart[k+1]; ++p){
-         int j=factor.rowindex[p]; // work on column j
-         T multiplier=factor.value[p];
+      for(int p=alpha.colstart[k]; p<alpha.colstart[k+1]; ++p){
+         int j=alpha.rowindex[p]; // work on column j
+         T multiplier=alpha.value[p];
          T missing=0;
-         int a=factor.colstart[k];
+         int a=alpha.colstart[k];
          // first look for contributions to missing from dropped entries above the diagonal in column j
          int b=0;
-         while(a<factor.colstart[k+1] && factor.rowindex[a]<j){
+         while(a<alpha.colstart[k+1] && alpha.rowindex[a]<j){
             // look for factor.rowindex[a] in matrix.index[j] starting at b
             while(b<(int)matrix.index[j].size()){
-               if(matrix.index[j][b]<factor.rowindex[a])
+               if(matrix.index[j][b]<alpha.rowindex[a])
                   ++b;
-               else if(matrix.index[j][b]==factor.rowindex[a])
+               else if(matrix.index[j][b]==alpha.rowindex[a])
                   break;
                else{
-                  missing+=factor.value[a];
+                  missing+=alpha.value[a];
                   break;
                }
             }
             ++a;
          }
          // adjust the diagonal j,j entry
-         if(a<factor.colstart[k+1] && factor.rowindex[a]==j){
-            factor.invdiag[j]-=multiplier*factor.value[a];
+         if(a<alpha.colstart[k+1] && alpha.rowindex[a]==j){
+            alpha.invdiag[j]-=multiplier*alpha.value[a];
          }
          ++a;
          // and now eliminate from the nonzero entries below the diagonal in column j (or add to missing if we can't)
-         b=factor.colstart[j];
-         while(a<factor.colstart[k+1] && b<factor.colstart[j+1]){
-            if(factor.rowindex[b]<factor.rowindex[a])
+         b=alpha.colstart[j];
+         while(a<alpha.colstart[k+1] && b<alpha.colstart[j+1]){
+            if(alpha.rowindex[b]<alpha.rowindex[a])
                ++b;
-            else if(factor.rowindex[b]==factor.rowindex[a]){
-               factor.value[b]-=multiplier*factor.value[a];
+            else if(alpha.rowindex[b]==alpha.rowindex[a]){
+               alpha.value[b]-=multiplier*alpha.value[a];
                ++a;
                ++b;
             }else{
-               missing+=factor.value[a];
+               missing+=alpha.value[a];
                ++a;
             }
          }
          // and if there's anything left to do, add it to missing
-         while(a<factor.colstart[k+1]){
-            missing+=factor.value[a];
+         while(a<alpha.colstart[k+1]){
+            missing+=alpha.value[a];
             ++a;
          }
          // and do the final diagonal adjustment from the missing entries
-         factor.invdiag[j]-=modification_parameter*multiplier*missing;
+         alpha.invdiag[j]-=modification_parameter*multiplier*missing;
       }
    }
 }
@@ -587,32 +587,32 @@ void factor_modified_incomplete_cholesky0(const SparseMatrix<T> &matrix, SparseC
 
 // solve L*result=rhs
 template<class T>
-void solve_lower(const SparseColumnLowerFactor<T> &factor, const std::vector<T> &rhs, std::vector<T> &result)
+void solve_lower(const SparseColumnLowerFactor<T> &alpha, const std::vector<T> &rhs, std::vector<T> &result)
 {
-   assert(factor.n==rhs.size());
-   assert(factor.n==result.size());
+   assert(alpha.n==rhs.size());
+   assert(alpha.n==result.size());
    result=rhs;
-   for(int i=0; i<factor.n; ++i){
-      result[i]*=factor.invdiag[i];
-      for(int j=factor.colstart[i]; j<factor.colstart[i+1]; ++j){
-         result[factor.rowindex[j]]-=factor.value[j]*result[i];
+   for(int i=0; i<alpha.n; ++i){
+      result[i]*=alpha.invdiag[i];
+      for(int j=alpha.colstart[i]; j<alpha.colstart[i+1]; ++j){
+         result[alpha.rowindex[j]]-=alpha.value[j]*result[i];
       }
    }
 }
 
 // solve L^T*result=rhs
 template<class T>
-void solve_lower_transpose_in_place(const SparseColumnLowerFactor<T> &factor, std::vector<T> &x)
+void solve_lower_transpose_in_place(const SparseColumnLowerFactor<T> &alpha, std::vector<T> &x)
 {
-   assert(factor.n==(int)x.size());
-   assert(factor.n>0);
-   int i=factor.n;
+   assert(alpha.n==(int)x.size());
+   assert(alpha.n>0);
+   int i=alpha.n;
    do{
       --i;
-      for(int j=factor.colstart[i]; j<factor.colstart[i+1]; ++j){
-         x[i]-=factor.value[j]*x[factor.rowindex[j]];
+      for(int j=alpha.colstart[i]; j<alpha.colstart[i+1]; ++j){
+         x[i]-=alpha.value[j]*x[alpha.rowindex[j]];
       }
-      x[i]*=factor.invdiag[i];
+      x[i]*=alpha.invdiag[i];
    }while(i!=0);
 }
 

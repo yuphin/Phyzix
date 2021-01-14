@@ -21,7 +21,12 @@ private:
 	bool is_3d;
 };
 
+class DiffusionSimulator;
 
+struct client_data {
+	DiffusionSimulator* self;
+	int* dim_size;
+};
 
 class DiffusionSimulator:public Simulator{
 public:
@@ -43,9 +48,12 @@ public:
 	Grid* solve_explicit(float time_step);
 	void solve_implicit(float time_step);
 	void pass_time_step_variable(float time_step);
+	static void TW_CALL setDimSize(const void* value, void* clientData);
+	static void TW_CALL getDimSize(void* value, void* clientData);
 
 private:
 	void init_grid();
+	void setup_for_implicit();
 	// Attributes
 	// Assume uniform grid for now
 	int dim_size = 30;
@@ -62,6 +70,9 @@ private:
 	float time_step;
 	bool adaptive_step;
 	bool is_3d = false;
+	client_data* data;
 };
+
+
 
 #endif

@@ -185,8 +185,28 @@ void DiffusionSimulator::reset() {
 
 }
 
+void TW_CALL DiffusionSimulator::setDimSize(const void* value, void* clientData) {
+	client_data* client_p = static_cast<client_data*>(clientData);
+	*(client_p->dim_size) = *(static_cast<const int*>(value));
+	client_p->self->init_grid();
+	if (client_p->self->m_iTestCase == 1) {
+		client_p->self->setup_for_implicit();
+	}
+}
+
+void TW_CALL DiffusionSimulator::getDimSize(void* value, void* clientData) {
+	int* val_p = static_cast<int*>(value);
+	*val_p = *((static_cast<client_data*>(clientData))->dim_size);
+}
+
 void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
+
+	data = new client_data();
+	data->dim_size = &dim_size;
+	data->self = this;
+
+	TwAddVarCB(DUC->g_pTweakBar, "Grid Size", TW_TYPE_INT32, setDimSize, getDimSize, reinterpret_cast<void*>(data), "step=1 min=1");
 }
 
 static bool is_any_boundary(int i, int j, int dim_size, bool is_3d,
@@ -228,7 +248,7 @@ static bool is_any_boundary(int i, int j, int dim_size, bool is_3d,
 static void setup_A(SparseMatrix<Real>& A, double alpha, Real grid_size, int dim_size, float dt,
 	bool is_3d = false) {
 	// Order : j->i->(possibly k)
-	const Real dx = grid_size / dim_size;
+	const Real dx = 0.1; //this used to be grid_size / dim_size but when dim_size increased, grid size increases as well so it always keeps a ratio of 0.1
 	const Real dx2 = dx * dx;
 	bool is_dim_odd = dim_size % 2;
 	const Real F = alpha * dt / (2 * dx2);
@@ -348,7 +368,7 @@ void DiffusionSimulator::notifyCaseChanged(int test_case) {
 	case 0:
 		cout << "Explicit solver!\n";
 		is_3d = false;
-		goto init;
+		init_grid();
 		break;
 
 	case 1:
@@ -359,16 +379,13 @@ init:
 		init_grid();
 
 		if (!adaptive_step) {
-			const int N = is_3d ? dim_size * dim_size * dim_size :
-				dim_size * dim_size;
-			A = std::make_unique<SparseMatrix<Real>>(N);
-			setup_A(*A, alpha, grid_size, dim_size, time_step, is_3d);
+			setup_for_implicit();
 		}
 	}
 	break;
 	case 2:
 	{
-		cout << "3D Implicit Solver! ";
+		cout << "3D Implicit Solver!\n";
 		is_3d = true;
 		goto init;
 	}
@@ -428,8 +445,12 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 		0 2 4
 		1 3 5
 		6 7 8
+
+		0 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30
+		1 3 5 7 9 11 13 15 17 19 21 23 25 27 29 31
 	*/
 
+	// std::cout << "starting\n";
 	for (int i = 0; i < N; i++) {
 		float it = grid->values[i];
 		auto neutralized_i = i % size2d;
@@ -493,6 +514,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	}
 
 	grid->values = std::move(new_grid_values);
+
 	return nullptr;
 }
 
@@ -530,6 +552,14 @@ void DiffusionSimulator::init_grid() {
 	grid = std::make_unique<Grid>(dim_size, is_3d);
 }
 
+void DiffusionSimulator::setup_for_implicit() {
+	const int N = is_3d ? dim_size * dim_size * dim_size :
+		dim_size * dim_size;
+	A = std::make_unique<SparseMatrix<Real>>(N);
+	setup_A(*A, alpha, grid_size, dim_size, time_step, is_3d);
+
+}
+
 void DiffusionSimulator::simulateTimestep(float time_step) {
 	// to be implemented
 	// update current setup for each frame
@@ -550,6 +580,30 @@ void DiffusionSimulator::simulateTimestep(float time_step) {
 void DiffusionSimulator::externalForcesCalculations(float time_elapsed) {
 }
 
+void getHeatMapColor(float value, float* red, float* green, float* blue)
+{
+	const int NUM_COLORS = 7;
+	static float color[NUM_COLORS][3] = { {0, 0, 0},  {0,0,1}, {0, 1, 1}, {0,1,0}, {1,1,0}, {1,0,0}, {1, 1, 1} };
+
+	int idx1;
+	int idx2;
+	float fractBetween = 0;
+
+	if (value <= 0) { idx1 = idx2 = 0; }
+	else if (value >= 1) { idx1 = idx2 = NUM_COLORS - 1; }
+	else
+	{
+		value = value * (NUM_COLORS - 1);
+		idx1 = floor(value);
+		idx2 = idx1 + 1;
+		fractBetween = value - float(idx1);
+	}
+
+	*red = (color[idx2][0] - color[idx1][0]) * fractBetween + color[idx1][0];
+	*green = (color[idx2][1] - color[idx1][1]) * fractBetween + color[idx1][1];
+	*blue = (color[idx2][2] - color[idx1][2]) * fractBetween + color[idx1][2];
+}
+
 void DiffusionSimulator::draw_objects() {
 	// to be implemented
 	//visualization
@@ -560,7 +614,9 @@ void DiffusionSimulator::draw_objects() {
 	{
 		const auto rad = 0.1f;
 		for (int i = 0; i < grid->num_points; i++) {
-			DUC->setUpLighting(Vec3(grid->values[i] / 100, 0, 0), Vec3(), 2000.0, Vec3(0.1, 0.1, 0.1));
+			float r, g, b;
+			getHeatMapColor(grid->values[i] / 100, &r, &g, &b);
+			DUC->setUpLighting(Vec3(r, g, b), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
 			DUC->drawSphere(grid->pos_internal[i], { rad,rad,rad });
 		}
 	}

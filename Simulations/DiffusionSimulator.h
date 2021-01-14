@@ -9,12 +9,15 @@
 struct Grid {
 	// Constructors
 	Grid(int dim_x, bool is_3d = false);
-	std::vector<int> get_internal_repr_idxs();
 	std::vector<Real> values;
 	std::vector<Vec3> positions;
 	std::vector<Vec3> pos_internal;
+	std::vector<int> boundary_indices;
 	int num_points, dim_x;
+	std::vector<Real> create_new();
 private:
+	std::vector<int> get_internal_repr_idxs();
+	void set_boundary_indices(int dim_sqr, int dim_z);
 	bool is_3d;
 };
 
@@ -45,7 +48,7 @@ private:
 	void init_grid();
 	// Attributes
 	// Assume uniform grid for now
-	int dim_size = 10;
+	int dim_size = 30;
 	Real grid_size = 1;
 	double alpha = 1;
 	Vec3  movable_obj_pos;

@@ -1,4 +1,5 @@
 #include "DiffusionSimulator.h"
+#include <algorithm>
 using namespace std;
 
 
@@ -6,7 +7,6 @@ Grid::Grid(int dim_x, bool is_3d) : dim_x(dim_x), is_3d(is_3d) {
 	num_points = is_3d ? pow(dim_x, 3) : pow(dim_x, 2);
 	values.resize(num_points);
 	positions.resize(num_points);
-	pos_internal.resize(num_points);
 	// Some documentation of grid for reference
 	// Flattened(default) version (indices). For EX in 2D:
 	/*
@@ -53,11 +53,8 @@ Grid::Grid(int dim_x, bool is_3d) : dim_x(dim_x), is_3d(is_3d) {
 		..
 		0 0 0 0 ... 0
 	*/
-	for (int i = 0; i < num_points; i++) {
-		if (i == 3) {
-			values[i] = 1000000;
-		}
-	}
+	values[3] = 1e10;
+	
 	// R = 0.1
 	// For easier specification of positions, we naively assign position values
 	Vec3 L = Vec3(-0.1 * dim_x, 0, 0);
@@ -72,7 +69,7 @@ Grid::Grid(int dim_x, bool is_3d) : dim_x(dim_x), is_3d(is_3d) {
 				auto offsetx = Vec3(j * 0.1, 0, 0);
 				positions[k_offset + dim_x * i + j] = L + offsetx - Vec3(0, 0, k * 0.1);
 				positions[k_offset + dim_x * i + j] += T - offsety;
-				positions[k_offset + dim_x * (i + 1) + j] = 
+				positions[k_offset + dim_x * (i + 1) + j] =
 					positions[k_offset + dim_x * i + j] - Vec3(0, 0.1, 0);
 			}
 		}
@@ -84,6 +81,9 @@ Grid::Grid(int dim_x, bool is_3d) : dim_x(dim_x), is_3d(is_3d) {
 			}
 		}
 	}
+	pos_internal.resize(num_points);
+	int dim_z = is_3d ? dim_x : 1;
+	boundary_indices.resize(dim_z * (4 * dim_x - 4));
 	auto idxs = get_internal_repr_idxs();
 	// We map previous position values to an internal representation.
 	// NOTE: This assumes fixed positions. For a dynamic grid we'd need to calculate 
@@ -91,10 +91,19 @@ Grid::Grid(int dim_x, bool is_3d) : dim_x(dim_x), is_3d(is_3d) {
 	for (int i = 0; i < num_points; i++) {
 		pos_internal[i] = positions[idxs[i]];
 	}
+	set_boundary_indices(dim_sqr, dim_z);
+}
+
+std::vector<Real> Grid::create_new()
+{
+	std::vector<Real> result;
+	result.resize(num_points);
+	result[3] = 1e10;
+	return result;
 }
 
 std::vector<int> Grid::get_internal_repr_idxs() {
-	
+
 	std::vector<int> result;
 	result.resize(num_points);
 	auto idx = 0;
@@ -117,6 +126,44 @@ std::vector<int> Grid::get_internal_repr_idxs() {
 		}
 	}
 	return result;
+}
+
+void Grid::set_boundary_indices(int dim_sqr, int dim_z) {
+	int idx = 0;
+	for (int i = 0; i < 2 * dim_x; i += 2) {
+		boundary_indices[idx++] = i;
+	}
+	for (int i = dim_sqr; i > dim_sqr - 2 * dim_x; i--) {
+		if (dim_x % 2 && i >= (dim_sqr - dim_x)) {
+			if (i == dim_sqr) {
+				continue;
+			}
+			boundary_indices[idx++] = i;
+		}
+		if (dim_x % 2 == 0 && i % 2) {
+			boundary_indices[idx++] = i;
+		}
+	}
+	int r = 0;
+	for (int i = 1; i <= dim_x - 2; i++) {
+		if (i % 2) {
+			boundary_indices[idx++] = 1 + r * dim_x * 2;
+			boundary_indices[idx] = boundary_indices[idx - 1] + (dim_x * 2 - 2);
+			idx++;
+			r++;
+		} else {
+			boundary_indices[idx++] = r * dim_x * 2;
+			boundary_indices[idx] = boundary_indices[idx - 1] + (dim_x * 2 - 2);
+			idx++;
+		}
+	}
+	for (int k = 1; k < dim_z; k++) {
+		int k_offset = dim_sqr * k;
+		boundary_indices[idx++] = k_offset;
+		boundary_indices[idx++] = k_offset + dim_x * 2 - 2;
+		boundary_indices[idx++] = k_offset + dim_sqr - 1;
+		boundary_indices[idx++] = k_offset + (dim_x % 2 ? dim_sqr - 1 - dim_x - 1 : dim_sqr - (dim_x * 2 - 1));
+	}
 }
 
 DiffusionSimulator::DiffusionSimulator(bool adaptive_step) {
@@ -143,7 +190,7 @@ void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 }
 
 static bool is_any_boundary(int i, int j, int dim_size, bool is_3d,
-							int dim_sqr, int dim_2, int rem, bool is_odd) {
+	int dim_sqr, int dim_2, int rem, bool is_odd) {
 	int res = i / dim_sqr;
 	bool top = (i % dim_sqr) < dim_2 && (i % 2 == (is_odd ? res % 2 : 0));
 	bool bottom = (!is_odd && ((i % dim_sqr) > dim_sqr - dim_2 && i % 2 == 1)
@@ -166,7 +213,7 @@ static bool is_any_boundary(int i, int j, int dim_size, bool is_3d,
 	bool bf = f && bottom;
 	bool tf = f && top;
 	if ((i % dim_2 == dim_2 - 2 || i % dim_2 == dim_2 - 1)
-		|| bottom || top 
+		|| bottom || top
 		|| (i % dim_2 == 0 || i % dim_2 == 1)
 		|| (is_3d && res >= dim_size - 1)) {
 		if ((is_3d && (res <= dim_size - 1 && res != 0)) &&
@@ -202,7 +249,7 @@ static void setup_A(SparseMatrix<Real>& A, double alpha, Real grid_size, int dim
 		bool any_boundary = false;
 		int res = i / dim_sqr;
 		int odd_offset = is_dim_odd ? rem * (res % 2) : 0;
-		if ((i  % dim_2 == (dim_2 - 2  + odd_offset) % dim_2
+		if ((i % dim_2 == (dim_2 - 2 + odd_offset) % dim_2
 			|| i % dim_2 == (dim_2 - 1 + odd_offset) % dim_2)
 			|| (is_dim_odd && (i % dim_sqr == (dim_sqr - 1)))) {
 			right = true;
@@ -227,8 +274,8 @@ static void setup_A(SparseMatrix<Real>& A, double alpha, Real grid_size, int dim
 		}
 		// TODO: There is probably a huge simplification here
 		if ((!is_dim_odd && ((i % dim_2 == 0) || i % dim_2 == 1))
-			|| (is_dim_odd && ((i % dim_sqr < (dim_sqr - dim_size) && 
-				 (i % dim_2 == odd_offset ||i % dim_2 == (1 + odd_offset) % dim_2))))
+			|| (is_dim_odd && ((i % dim_sqr < (dim_sqr - dim_size) &&
+			(i % dim_2 == odd_offset || i % dim_2 == (1 + odd_offset) % dim_2))))
 			|| (is_dim_odd && (i % dim_sqr == dim_sqr - dim_size))) {
 			left = true;
 			any_boundary = true;
@@ -248,8 +295,7 @@ static void setup_A(SparseMatrix<Real>& A, double alpha, Real grid_size, int dim
 		}
 		if (any_boundary) {
 			A.set_element(i, i, 1);
-		}
-		else {
+		} else {
 			A.set_element(i, i, is_3d ? 1 + 6 * F : 1 + 4 * F);
 		}
 		if (is_3d && !f) {
@@ -272,8 +318,7 @@ static void setup_A(SparseMatrix<Real>& A, double alpha, Real grid_size, int dim
 				if (!is_any_boundary(i + offset, i, dim_size, is_3d, dim_sqr, dim_2, rem, is_dim_odd)) {
 					A.set_element(i + offset, i, -F);
 				}
-			}
-			else {
+			} else {
 				if (!any_boundary) {
 					A.set_element(i, i + 1, -F);
 				}
@@ -284,7 +329,7 @@ static void setup_A(SparseMatrix<Real>& A, double alpha, Real grid_size, int dim
 		}
 		if (!right) {
 			bool last_row = row == dim_size - 1;
-			int row_offset = is_dim_odd && last_row  ? 1 : 2;
+			int row_offset = is_dim_odd && last_row ? 1 : 2;
 			if (!any_boundary) {
 				A.set_element(i, i + row_offset, -F);
 			}
@@ -310,8 +355,9 @@ void DiffusionSimulator::notifyCaseChanged(int test_case) {
 	{
 		cout << "Implicit solver!\n";
 		is_3d = false;
-	init:
+init:
 		init_grid();
+
 		if (!adaptive_step) {
 			const int N = is_3d ? dim_size * dim_size * dim_size :
 				dim_size * dim_size;
@@ -334,13 +380,34 @@ void DiffusionSimulator::notifyCaseChanged(int test_case) {
 }
 
 Grid* DiffusionSimulator::solve_explicit(float time_step) {
-	auto new_grid = std::make_unique<Grid>(dim_size, is_3d);
+
+	std::vector<Real> new_grid_values = grid->create_new();
 	const int N = is_3d ? dim_size * dim_size * dim_size : dim_size * dim_size;
 	const int size2d = dim_size * dim_size;
-	
+
 	const Real dx = grid_size / dim_size;
 	const Real dx2 = dx * dx;
 	bool is_dim_odd = dim_size % 2;
+	// Stability conditions:
+	// In 1D:
+	// u_i^{t+1} = u_i^{t} + F * (u_i^{t} - 2 * u_i^{t} + u_{i-1}^{t} )
+	// In nD
+	// u_i^{t+1} = u_i^{t} + F * (u_ix^{t} - 2 * u_ix^{t} + u_ix{i-1}^{t} ) 
+	//				+ F * (u_iy^ { t } - 2 * u_iy^ { t } + u_{ i - 1 }y^ {t})
+					// ...
+	// Where F = alpha * time_step / dx2;
+	// Reorganizing we have
+	//  u_i^{t+1} = (1 - 2 * n * F) u_i^{t} + F (u_ix^{t} + u_{i-1}x^{t} ...)
+	// The stability condition is when 1 - 2 * n * F <= 0 => F <= 1/(2 * n)
+	// Note that larger F values cause current cell to have negative impact hence the solution blows up
+	
+	// The limiting time_step value is
+	//  alpha * time_step / dx2 <= 1/(2*n)
+	// => time_step <= dx2 / (2 * n * alpha)
+	Real val = dx2 / ((is_3d ? 6 : 4) * 2 * alpha);
+	if (time_step > val) {
+		time_step = val;
+	}
 
 	/*
 		0 2 4 6 8
@@ -380,12 +447,12 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 		x = (neutralized_i % (2 * dim_size) - (neutralized_i % 2 == 0 ? 0 : 1)) / 2;
 		if (is_dim_odd && y == (dim_size - 1)) {
 			x = neutralized_i - (dim_size * (dim_size - 1));
-		}		
+		}
 
 		int z = i / size2d;
 
 		if (x == 0 || x == dim_size - 1 || y == 0 || y == dim_size - 1 || (is_3d && z == 0) || (is_3d && z == dim_size - 1)) {
-			new_grid->values[i] = 0;
+			new_grid_values[i] = 0;
 			continue;
 		}
 
@@ -406,12 +473,10 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 			int y_offset = (dim_size * 2 - 1) - (neutralized_i - (dim_size * (dim_size - 3) + 1)) / 2;
 			y_diff += grid->values[i - 1];
 			y_diff += (neutralized_i + y_offset) >= size2d ? 0 : grid->values[i + y_offset];
-		}
-		else if (neutralized_i % 2 == 0) {
+		} else if (neutralized_i % 2 == 0) {
 			y_diff += (neutralized_i - dim_size * 2 + 1) < 0 ? 0 : grid->values[i - dim_size * 2 + 1];
 			y_diff += grid->values[i + 1];
-		}
-		else {
+		} else {
 			y_diff += grid->values[i - 1];
 			y_diff += (neutralized_i + dim_size * 2 - 1) >= size2d ? 0 : grid->values[i + dim_size * 2 - 1];
 		}
@@ -423,19 +488,19 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 			z_diff += (i + dim_size * dim_size) >= N ? 0 : grid->values[i + dim_size * dim_size];
 			z_diff -= 2 * it;
 		}
-
-		new_grid->values[i] = (x_diff/dx2 + y_diff/dx2 + z_diff/dx2) * alpha * time_step + it;
+		//const Real F = alpha * time_step / (dx2);
+		new_grid_values[i] = (x_diff / dx2 + y_diff / dx2 + z_diff / dx2) * alpha * time_step + it;
 	}
 
-	grid->values = std::move(new_grid->values);
+	grid->values = std::move(new_grid_values);
 	return nullptr;
 }
 
 void DiffusionSimulator::solve_implicit(float time_step) {
 	// solve A T = b
 	std::unique_ptr<SparseMatrix<Real>> A_local = nullptr;
-	constexpr Real pcg_target_residual = 1e-05;
-	constexpr Real pcg_max_iterations = 1000;
+	constexpr Real pcg_target_residual = 1e-3;
+	constexpr Real pcg_max_iterations = 500;
 	const int N = is_3d ? dim_size * dim_size * dim_size : dim_size * dim_size;
 	Real ret_pcg_residual = 1e10;
 	int  ret_pcg_iterations = -1;
@@ -450,7 +515,10 @@ void DiffusionSimulator::solve_implicit(float time_step) {
 	std::vector<Real> x(N, 0);
 	// preconditioners: 0 off, 1 diagonal, 2 incomplete cholesky
 	solver.solve(adaptive_step ? *A_local : *A, grid->values, x, ret_pcg_residual, ret_pcg_iterations, 2);
-	// x contains the new temperature values
+	// Enforce boundary conditions (because of inaccuracies)
+	for (const auto& idx : grid->boundary_indices) {
+		x[idx] = 0;
+	}
 	grid->values = std::move(x);
 }
 

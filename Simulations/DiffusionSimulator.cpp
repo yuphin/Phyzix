@@ -302,6 +302,8 @@ void DiffusionSimulator::notifyCaseChanged(int test_case) {
 	{
 	case 0:
 		cout << "Explicit solver!\n";
+		is_3d = false;
+		goto init;
 		break;
 
 	case 1:
@@ -331,11 +333,101 @@ void DiffusionSimulator::notifyCaseChanged(int test_case) {
 	}
 }
 
-Grid* DiffusionSimulator::solve_explicit() {
-	//Grid* newT = new Grid(dim_size);
-	// to be implemented
-	//make sure that the temperature in boundary cells stays zero
-	//return newT;
+Grid* DiffusionSimulator::solve_explicit(float time_step) {
+	auto new_grid = std::make_unique<Grid>(dim_size, is_3d);
+	const int N = is_3d ? dim_size * dim_size * dim_size : dim_size * dim_size;
+	const int size2d = dim_size * dim_size;
+	
+	const Real dx = grid_size / dim_size;
+	const Real dx2 = dx * dx;
+	bool is_dim_odd = dim_size % 2;
+
+	/*
+		0 2 4 6 8
+		1 3 5 7 9
+		10 12 14 16 18
+		11 13 15 17 19
+		20 21 22 23 24
+	*/
+	/*
+		0   2  4  6  8 10 12
+		1   3  5  7  9 11 13
+		14 16 18 20 22 24 26
+		15 17 19 21 23 25 27
+		28 30 32 34 36 38 40
+		29 31 33 35 37 39 41
+		42 43 44 45 46 47 48
+
+		0 2 4
+		1 3 5
+		6 7 8
+	*/
+
+	for (int i = 0; i < N; i++) {
+		float it = grid->values[i];
+		auto neutralized_i = i % size2d;
+
+		float x_diff = 0;
+		float y_diff = 0;
+		float z_diff = 0;
+
+		int y = (neutralized_i / (2 * dim_size)) * 2;
+		if ((is_dim_odd && y != (dim_size - 1)) || !is_dim_odd) {
+			y += neutralized_i % 2 == 0 ? 0 : 1;
+		}
+
+		int x = 0;
+		x = (neutralized_i % (2 * dim_size) - (neutralized_i % 2 == 0 ? 0 : 1)) / 2;
+		if (is_dim_odd && y == (dim_size - 1)) {
+			x = neutralized_i - (dim_size * (dim_size - 1));
+		}		
+
+		int z = i / size2d;
+
+		if (x == 0 || x == dim_size - 1 || y == 0 || y == dim_size - 1 || (is_3d && z == 0) || (is_3d && z == dim_size - 1)) {
+			new_grid->values[i] = 0;
+			continue;
+		}
+
+		bool last_row = y == (dim_size - 1);
+
+		//x
+		int x_offset = (last_row && is_dim_odd) ? 1 : 2;
+		x_diff += (neutralized_i - x_offset) < 0 ? 0 : grid->values[i - x_offset];
+		x_diff += (neutralized_i + x_offset) >= size2d ? 0 : grid->values[i + x_offset];
+		x_diff -= 2 * it;
+
+		//y
+		if (last_row && is_dim_odd) {
+			int y_offset = (dim_size * 2 - 1) - (neutralized_i - dim_size * (dim_size - 1));
+			y_diff += (neutralized_i - y_offset) < 0 ? 0 : grid->values[i - y_offset];
+		}
+		if (y == dim_size - 2 && is_dim_odd) {
+			int y_offset = (dim_size * 2 - 1) - (neutralized_i - (dim_size * (dim_size - 3) + 1)) / 2;
+			y_diff += grid->values[i - 1];
+			y_diff += (neutralized_i + y_offset) >= size2d ? 0 : grid->values[i + y_offset];
+		}
+		else if (neutralized_i % 2 == 0) {
+			y_diff += (neutralized_i - dim_size * 2 + 1) < 0 ? 0 : grid->values[i - dim_size * 2 + 1];
+			y_diff += grid->values[i + 1];
+		}
+		else {
+			y_diff += grid->values[i - 1];
+			y_diff += (neutralized_i + dim_size * 2 - 1) >= size2d ? 0 : grid->values[i + dim_size * 2 - 1];
+		}
+		y_diff -= 2 * it;
+
+		//z
+		if (is_3d) {
+			z_diff += (i - dim_size * dim_size) < 0 ? 0 : grid->values[i - dim_size * dim_size];
+			z_diff += (i + dim_size * dim_size) >= N ? 0 : grid->values[i + dim_size * dim_size];
+			z_diff -= 2 * it;
+		}
+
+		new_grid->values[i] = (x_diff/dx2 + y_diff/dx2 + z_diff/dx2) * alpha * time_step + it;
+	}
+
+	grid->values = std::move(new_grid->values);
 	return nullptr;
 }
 
@@ -376,7 +468,7 @@ void DiffusionSimulator::simulateTimestep(float time_step) {
 	switch (m_iTestCase)
 	{
 	case 0:
-		solve_explicit();
+		solve_explicit(time_step);
 		break;
 	case 2:
 	case 1:
@@ -395,8 +487,6 @@ void DiffusionSimulator::draw_objects() {
 	//visualization
 	switch (m_iTestCase) {
 	case 0:
-
-	break;
 	case 2:
 	case 1:
 	{

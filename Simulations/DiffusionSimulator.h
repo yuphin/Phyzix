@@ -37,7 +37,7 @@ public:
 	void onMouse(int x, int y) override;
 	// Specific Functions
 	void draw_objects();
-	Grid* solve_explicit();
+	Grid* solve_explicit(float time_step);
 	void solve_implicit(float time_step);
 	void pass_time_step_variable(float time_step);
 

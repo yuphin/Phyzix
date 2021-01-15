@@ -421,8 +421,9 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	// The limiting time_step value is
 	//  alpha * time_step / dx2 <= 1/(2*n)
 	// => time_step <= dx2 / (2 * n * alpha)
-	Real val = dx2 / ((is_3d ? 6 : 4) * 2 * alpha);
-	if (time_step > val) {
+	constexpr double EPS = 0.01;
+	Real val = dx2 / ((is_3d ? 6 : 4) * (1 + EPS) * alpha);
+	if (time_step >= val) {
 		time_step = val;
 	}
 

@@ -4,7 +4,8 @@
 #include "Simulator.h"
 #include "vectorbase.h"
 #include "pcgsolver.h"
-
+#include <wrl/client.h>
+using namespace Microsoft::WRL;
 //Implement your own grid class for saving grid data
 struct Grid {
 	// Constructors
@@ -14,6 +15,8 @@ struct Grid {
 	std::vector<Vec3> pos_internal;
 	std::vector<int> boundary_indices;
 	int num_points, dim_x;
+	// For GPU
+	std::vector<float> vals_gpu;
 	std::vector<Real> create_new();
 private:
 	std::vector<int> get_internal_repr_idxs();
@@ -23,15 +26,23 @@ private:
 
 class DiffusionSimulator;
 
-struct client_data {
+struct DiffusionCB {
+	int N;
+	int align[3];
+};
+
+struct ClientData {
 	DiffusionSimulator* self;
 	int* dim_size;
+	int* cg_iters;
+	int* jacobi_iters;
 };
 
 class DiffusionSimulator:public Simulator{
 public:
 	// Constructors
 	DiffusionSimulator(bool adaptive_step = false);
+	~DiffusionSimulator();
 
 	// Functions
 	const char * getTestCasesStr();
@@ -48,15 +59,25 @@ public:
 	Grid* solve_explicit(float time_step);
 	void solve_implicit(float time_step);
 	void pass_time_step_variable(float time_step);
-	static void TW_CALL setDimSize(const void* value, void* clientData);
-	static void TW_CALL getDimSize(void* value, void* clientData);
-
+	void init_resources(ID3D11Device* device);
+	void fill_static_resources();
+	void fill_dynamic_resources(const std::vector<Real>& x);
+	static void TW_CALL set_dim_size(const void* value, void* client_data);
+	static void TW_CALL get_dim_size(void* value, void* client_data);
+	static void TW_CALL set_cg_iters(const void* value, void* client_data);
+	static void TW_CALL get_cg_iters(void* value, void* client_data);
+	static void TW_CALL set_jacobi_iters(const void* value, void* client_data);
+	static void TW_CALL get_jacobi_iters(void* value, void* client_data);
 private:
+	ID3D11DeviceContext* context;
+	ID3D11Device* device;
 	void init_grid();
 	void setup_for_implicit();
+	void setup_for_jacobi(const FixedSparseMatrix<Real>& mat);
+	void free_resources();
 	// Attributes
 	// Assume uniform grid for now
-	int dim_size = 30;
+	int dim_size = 10;
 	Real grid_size = 1;
 	double alpha = 1;
 	Vec3  movable_obj_pos;
@@ -70,9 +91,35 @@ private:
 	float time_step;
 	bool adaptive_step;
 	bool is_3d = false;
-	client_data* data;
+	bool use_gpu = false;
+	int num_jacobi_iters = 50;
+	int num_cg_iters = 20;
+	std::unique_ptr<ClientData> data;
+	ComPtr<ID3D11ComputeShader> compute_shader;
+	// Buffers
+	ComPtr<ID3D11Buffer> rowstart_buf;
+	ComPtr<ID3D11Buffer> colindex_buf;
+	ComPtr<ID3D11Buffer> mat_values_buf;
+	ComPtr<ID3D11Buffer> rhs_buf;
+	ComPtr<ID3D11Buffer> x_in_buf;
+	ComPtr<ID3D11Buffer> x_out_buf;
+	ComPtr<ID3D11Buffer> diffusion_cb;
+	//
+
+	// SRVs and UAVs
+	ID3D11ShaderResourceView* rowstart_srv = nullptr;
+	ID3D11ShaderResourceView* colindex_srv = nullptr;
+	ID3D11ShaderResourceView* mat_values_srv = nullptr;
+	ID3D11ShaderResourceView* rhs_srv = nullptr;
+	ID3D11ShaderResourceView* x_in_srv = nullptr;
+	ID3D11UnorderedAccessView* x_in_uav = nullptr;
+	ID3D11ShaderResourceView* x_out_srv = nullptr;
+	ID3D11UnorderedAccessView* x_out_uav = nullptr;
+	//
+
+	// For GPU
+	std::unique_ptr<FixedSparseMatrix<float>> fsm = nullptr;
+	std::vector<float> x_gpu;
+	DiffusionCB cb;
 };
-
-
-
 #endif

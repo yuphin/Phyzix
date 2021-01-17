@@ -684,13 +684,13 @@ struct SparsePCGSolver
 	  relative_residual_out = residual_out / residual_0;
       return false;
    }
-
+public:
+    FixedSparseMatrix<T> fixed_matrix; // used within loop
    protected:
-
    // internal structures
    SparseColumnLowerFactor<T> ic_factor; // modified incomplete cholesky factor
    std::vector<T> m, z, s, r; // temporary vectors for PCG
-   FixedSparseMatrix<T> fixed_matrix; // used within loop
+
 
    // parameters
    T tolerance_factor;

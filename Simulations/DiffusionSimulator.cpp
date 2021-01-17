@@ -1,11 +1,11 @@
 #include "DiffusionSimulator.h"
-#include <algorithm>
+#include "util/util.h"
 using namespace std;
-
 
 Grid::Grid(int dim_x, bool is_3d) : dim_x(dim_x), is_3d(is_3d) {
 	num_points = is_3d ? pow(dim_x, 3) : pow(dim_x, 2);
 	values.resize(num_points);
+	vals_gpu.resize(num_points);
 	positions.resize(num_points);
 	// Some documentation of grid for reference
 	// Flattened(default) version (indices). For EX in 2D:
@@ -54,7 +54,7 @@ Grid::Grid(int dim_x, bool is_3d) : dim_x(dim_x), is_3d(is_3d) {
 		0 0 0 0 ... 0
 	*/
 	values[3] = 1e10;
-	
+
 	// R = 0.1
 	// For easier specification of positions, we naively assign position values
 	Vec3 L = Vec3(-0.1 * dim_x, 0, 0);
@@ -131,7 +131,14 @@ std::vector<int> Grid::get_internal_repr_idxs() {
 void Grid::set_boundary_indices(int dim_sqr, int dim_z) {
 	int idx = 0;
 	for (int i = 0; i < 2 * dim_x; i += 2) {
+
 		boundary_indices[idx++] = i;
+		if (i != 0 && i != 2 * (dim_x - 1)) {
+			// Far top
+			if (dim_z > 1) {
+				boundary_indices[idx++] = i + (dim_z - 1) * dim_sqr;
+			}
+		}
 	}
 	for (int i = dim_sqr; i > dim_sqr - 2 * dim_x; i--) {
 		if (dim_x % 2 && i >= (dim_sqr - dim_x)) {
@@ -139,9 +146,17 @@ void Grid::set_boundary_indices(int dim_sqr, int dim_z) {
 				continue;
 			}
 			boundary_indices[idx++] = i;
-		}
-		if (dim_x % 2 == 0 && i % 2) {
+			if (dim_z > 1 && (i != dim_sqr - 1 && i != (dim_sqr - dim_x))) {
+				// Far bottom
+				boundary_indices[idx++] = i + (dim_z - 1) * dim_sqr;
+			}
+
+		} else if (dim_x % 2 == 0 && i % 2) {
 			boundary_indices[idx++] = i;
+			if (dim_z > 1 && (i != dim_sqr - 1 && i != (dim_sqr - 1 - 2 * (dim_x - 1)))) {
+				// Far bottom
+				boundary_indices[idx++] = i + (dim_z - 1) * dim_sqr;
+			}
 		}
 	}
 	int r = 0;
@@ -150,11 +165,24 @@ void Grid::set_boundary_indices(int dim_sqr, int dim_z) {
 			boundary_indices[idx++] = 1 + r * dim_x * 2;
 			boundary_indices[idx] = boundary_indices[idx - 1] + (dim_x * 2 - 2);
 			idx++;
+			// Far left
+			if (dim_z > 1) {
+				boundary_indices[idx++] = 1 + r * dim_x * 2 + (dim_z - 1) * dim_sqr;
+				boundary_indices[idx] = boundary_indices[idx - 3] + (dim_x * 2 - 2) + (dim_z - 1) * dim_sqr;
+				idx++;
+			}
+
 			r++;
 		} else {
 			boundary_indices[idx++] = r * dim_x * 2;
 			boundary_indices[idx] = boundary_indices[idx - 1] + (dim_x * 2 - 2);
 			idx++;
+			// Far right
+			if (dim_z > 1) {
+				boundary_indices[idx++] = r * dim_x * 2 + (dim_z - 1) * dim_sqr;
+				boundary_indices[idx] = boundary_indices[idx - 3] + (dim_x * 2 - 2) + (dim_z - 1) * dim_sqr;
+				idx++;
+			}
 		}
 	}
 	for (int k = 1; k < dim_z; k++) {
@@ -172,10 +200,11 @@ DiffusionSimulator::DiffusionSimulator(bool adaptive_step) {
 	movable_obj_final_pos = Vec3();
 	rotate = Vec3();
 	this->adaptive_step = adaptive_step;
+	this->DUC = nullptr;
 }
 
 const char* DiffusionSimulator::getTestCasesStr() {
-	return "Explicit solver, Implicit solver, Implicit 3D";
+	return "Explicit solver, Implicit solver, Implicit 3D, 3D GPU(Jacobi + PCG)";
 }
 
 void DiffusionSimulator::reset() {
@@ -185,29 +214,67 @@ void DiffusionSimulator::reset() {
 
 }
 
-void TW_CALL DiffusionSimulator::setDimSize(const void* value, void* clientData) {
-	client_data* client_p = static_cast<client_data*>(clientData);
+void TW_CALL DiffusionSimulator::set_dim_size(const void* value, void* client_data) {
+	ClientData* client_p = static_cast<ClientData*>(client_data);
 	*(client_p->dim_size) = *(static_cast<const int*>(value));
 	client_p->self->init_grid();
-	if (client_p->self->m_iTestCase == 1) {
+	if (client_p->self->m_iTestCase >= 1) {
 		client_p->self->setup_for_implicit();
 	}
 }
 
-void TW_CALL DiffusionSimulator::getDimSize(void* value, void* clientData) {
+void TW_CALL DiffusionSimulator::get_dim_size(void* value, void* client_data) {
 	int* val_p = static_cast<int*>(value);
-	*val_p = *((static_cast<client_data*>(clientData))->dim_size);
+	*val_p = *((static_cast<ClientData*>(client_data))->dim_size);
+}
+
+void TW_CALL DiffusionSimulator::set_cg_iters(const void* value, void* client_data) {
+	ClientData* client = static_cast<ClientData*>(client_data);
+	client->self->num_cg_iters = *static_cast<const int*>(value);
+}
+
+void TW_CALL DiffusionSimulator::get_cg_iters(void* value, void* client_data) {
+	int* val = static_cast<int*>(value);
+	*val = *((static_cast<ClientData*>(client_data))->cg_iters);
+}
+
+void TW_CALL DiffusionSimulator::set_jacobi_iters(const void* value, void* client_data) {
+	ClientData* client = static_cast<ClientData*>(client_data);
+	client->self->num_jacobi_iters = *static_cast<const int*>(value);
+}
+
+void TW_CALL DiffusionSimulator::get_jacobi_iters(void* value, void* client_data) {
+	int* val = static_cast<int*>(value);
+	*val = *((static_cast<ClientData*>(client_data))->jacobi_iters);
 }
 
 void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
-
-	data = new client_data();
+	this->context = DUC->g_pd3dImmediateContext;
+	data = std::make_unique<ClientData>();
 	data->dim_size = &dim_size;
+	data->jacobi_iters = &num_jacobi_iters;
+	data->cg_iters = &num_cg_iters;
 	data->self = this;
+	TwAddVarCB(DUC->g_pTweakBar, "Grid Size", TW_TYPE_INT32, set_dim_size, 
+		get_dim_size, reinterpret_cast<void*>(data.get()), "step=1 min=1");
+	if (m_iTestCase >= 1) {
+		TwAddVarCB(DUC->g_pTweakBar, "Num CG Iterations", TW_TYPE_INT32,
+			set_cg_iters, get_cg_iters, reinterpret_cast<void*>(data.get()),
+			"step=1 min=0");
+	} else {
+		TwRemoveVar(DUC->g_pTweakBar, "Num CG Iterations");
+	}
 
-	TwAddVarCB(DUC->g_pTweakBar, "Grid Size", TW_TYPE_INT32, setDimSize, getDimSize, reinterpret_cast<void*>(data), "step=1 min=1");
+	if (m_iTestCase == 3) {
+		TwAddVarCB(DUC->g_pTweakBar, "Num Jacobi Iterations", TW_TYPE_INT32,
+			set_jacobi_iters, get_jacobi_iters, reinterpret_cast<void*>(data.get()),
+			"step=2 min=0");
+	} else {
+		TwRemoveVar(DUC->g_pTweakBar, "Num Jacobi Iterations");
+	}
 }
+
 
 static bool is_any_boundary(int i, int j, int dim_size, bool is_3d,
 	int dim_sqr, int dim_2, int rem, bool is_odd) {
@@ -363,21 +430,23 @@ void DiffusionSimulator::notifyCaseChanged(int test_case) {
 	m_iTestCase = test_case;
 	movable_obj_pos = Vec3(0, 0, 0);
 	rotate = Vec3(0, 0, 0);
+
+	is_3d = false;
+	use_gpu = false;
+
 	switch (m_iTestCase)
 	{
 	case 0:
 		cout << "Explicit solver!\n";
-		is_3d = false;
 		init_grid();
 		break;
 
 	case 1:
 	{
 		cout << "Implicit solver!\n";
-		is_3d = false;
 init:
+		
 		init_grid();
-
 		if (!adaptive_step) {
 			setup_for_implicit();
 		}
@@ -387,6 +456,15 @@ init:
 	{
 		cout << "3D Implicit Solver!\n";
 		is_3d = true;
+		goto init;
+	}
+	break;
+	case 3:
+	{
+		cout << "3D GPU(Jacobi + PCG)\n";
+		use_gpu = true;
+		is_3d = true;
+	
 		goto init;
 	}
 	break;
@@ -417,7 +495,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	//  u_i^{t+1} = (1 - 2 * n * F) u_i^{t} + F (u_ix^{t} + u_{i-1}x^{t} ...)
 	// The stability condition is when 1 - 2 * n * F <= 0 => F <= 1/(2 * n)
 	// Note that larger F values cause current cell to have negative impact hence the solution blows up
-	
+
 	// The limiting time_step value is
 	//  alpha * time_step / dx2 <= 1/(2*n)
 	// => time_step <= dx2 / (2 * n * alpha)
@@ -523,7 +601,7 @@ void DiffusionSimulator::solve_implicit(float time_step) {
 	// solve A T = b
 	std::unique_ptr<SparseMatrix<Real>> A_local = nullptr;
 	constexpr Real pcg_target_residual = 1e-3;
-	constexpr Real pcg_max_iterations = 500;
+	int pcg_max_iterations = num_cg_iters;
 	const int N = is_3d ? dim_size * dim_size * dim_size : dim_size * dim_size;
 	Real ret_pcg_residual = 1e10;
 	int  ret_pcg_iterations = -1;
@@ -538,6 +616,62 @@ void DiffusionSimulator::solve_implicit(float time_step) {
 	std::vector<Real> x(N, 0);
 	// preconditioners: 0 off, 1 diagonal, 2 incomplete cholesky
 	solver.solve(adaptive_step ? *A_local : *A, grid->values, x, ret_pcg_residual, ret_pcg_iterations, 2);
+	if (use_gpu) {
+		// ---Begin Jacobi---
+		if (!fsm) {
+			setup_for_jacobi(solver.fixed_matrix);
+			fill_static_resources();
+		}
+		fill_dynamic_resources(x);
+
+		ID3D11ShaderResourceView* srvs[2] = { x_in_srv, x_out_srv };
+		ID3D11UnorderedAccessView* uavs[2] = { x_out_uav, x_in_uav };
+		ID3D11ShaderResourceView* null_srv[1] = { nullptr };
+		ID3D11UnorderedAccessView* null_uav[1] = { nullptr };
+		bool srv_idx = 1;
+		bool uav_idx = 1;
+		context->CSSetShader(compute_shader.Get(), nullptr, 0);
+		constexpr int NUM_THREADS_X = 32;
+		const int TG_X = ceil(((float)fsm->n / NUM_THREADS_X));
+		context->CSSetShaderResources(1, 1, &rowstart_srv);
+		context->CSSetShaderResources(2, 1, &colindex_srv);
+		context->CSSetShaderResources(3, 1, &mat_values_srv);
+		context->CSSetShaderResources(4, 1, &rhs_srv);
+		cb.N = N;
+		context->UpdateSubresource(
+			diffusion_cb.Get(),
+			0,
+			nullptr,
+			&cb,
+			0,
+			0
+		);
+		context->CSSetConstantBuffers(0, 1, diffusion_cb.GetAddressOf());
+		for (int i = 0; i < num_jacobi_iters; i++) {
+			srv_idx ^= 1;
+			uav_idx ^= 1;
+			context->CSSetShaderResources(0, 1, &srvs[srv_idx]);
+			context->CSSetUnorderedAccessViews(0, 1, &uavs[uav_idx], nullptr);
+			context->Dispatch(TG_X, 1, 1);
+			context->CSSetShaderResources(0, 1, null_srv);
+			context->CSSetUnorderedAccessViews(0, 1, null_uav, nullptr);
+		}
+		// Copy the output to original vector
+		D3D11_MAPPED_SUBRESOURCE mapped_resource;
+		ID3D11Buffer* staging_buf = CreateAndCopyToDebugBuf(device,
+			context, x_in_buf.Get());
+		float* out;
+		context->Map(staging_buf, 0, D3D11_MAP_READ, 0, &mapped_resource);
+		out = (float*)mapped_resource.pData;
+		std::vector<float> debug;
+		debug.assign(out, out + grid->num_points);
+		for (int i = 0; i < grid->values.size(); i++) {
+			x[i] = out[i];
+		}
+		staging_buf->Release();
+		// ---End Jacobi---
+	}
+
 	// Enforce boundary conditions (because of inaccuracies)
 	for (const auto& idx : grid->boundary_indices) {
 		x[idx] = 0;
@@ -549,6 +683,74 @@ void DiffusionSimulator::pass_time_step_variable(float time_step) {
 	this->time_step = time_step;
 }
 
+void DiffusionSimulator::init_resources(ID3D11Device* device) {
+	this->device = device;
+	HRESULT hr = S_OK;
+	ID3DBlob* cs_blob = nullptr;
+	ID3DBlob* err_blob = nullptr;
+	// Create Compute Shader
+	hr = D3DCompileFromFile(L"jacobi_heat.hlsl", NULL, NULL, "CS", "cs_5_0", 0, 0, &cs_blob, &err_blob);
+	if (FAILED(hr)) {
+		if (err_blob) {
+			printf("Error %s\n", err_blob->GetBufferPointer());
+		}
+	}
+	device->CreateComputeShader(cs_blob->GetBufferPointer(), cs_blob->GetBufferSize(), NULL, &compute_shader);
+	CD3D11_BUFFER_DESC cb_desc(
+		sizeof(DiffusionCB),
+		D3D11_BIND_CONSTANT_BUFFER
+	);
+	hr = device->CreateBuffer(&cb_desc, nullptr, diffusion_cb.GetAddressOf());
+	int a = 4;
+
+}
+
+void DiffusionSimulator::fill_static_resources() {
+	// Rowstart
+	create_structured_buffer(device, sizeof(int), fsm->rowstart.size(),
+		fsm->rowstart.data(), rowstart_buf.GetAddressOf());
+	create_srv(device, rowstart_buf.Get(), &rowstart_srv);
+	// Col index
+	create_structured_buffer(device, sizeof(int), fsm->colindex.size(),
+		fsm->colindex.data(), colindex_buf.GetAddressOf());
+	create_srv(device, colindex_buf.Get(), &colindex_srv);
+	// Mat values
+	create_structured_buffer(device, sizeof(int), fsm->value.size(),
+		fsm->value.data(), mat_values_buf.GetAddressOf());
+	create_srv(device, mat_values_buf.Get(), &mat_values_srv);
+	// X_out
+	create_structured_buffer(device, sizeof(float), grid->num_points,
+		0, x_out_buf.GetAddressOf());
+	create_srv(device, x_out_buf.Get(), &x_out_srv);
+	create_uav(device, x_out_buf.Get(), &x_out_uav);
+}
+
+void DiffusionSimulator::fill_dynamic_resources(const std::vector<Real>& x) {
+	for (int i = 0; i < grid->values.size(); i++) {
+		grid->vals_gpu[i] = static_cast<float>(grid->values[i]);
+		x_gpu[i] = static_cast<float>(x[i]);
+	}
+
+	if (!rhs_buf) {
+		create_structured_buffer(device, sizeof(float), grid->num_points,
+			grid->vals_gpu.data(), rhs_buf.GetAddressOf());
+		create_srv(device, rhs_buf.Get(), &rhs_srv);
+	} else {
+		context->UpdateSubresource(rhs_buf.Get(), 0, nullptr,
+			grid->vals_gpu.data(), 0, 0);
+	}
+
+	if (!x_in_buf) {
+		create_structured_buffer(device, sizeof(float), grid->num_points,
+			x_gpu.data(), x_in_buf.GetAddressOf());
+		create_srv(device, x_in_buf.Get(), &x_in_srv);
+		create_uav(device, x_in_buf.Get(), &x_in_uav);
+	} else {
+		context->UpdateSubresource(x_in_buf.Get(), 0, nullptr,
+			x_gpu.data(), 0, 0);
+	}
+}
+
 void DiffusionSimulator::init_grid() {
 	grid = std::make_unique<Grid>(dim_size, is_3d);
 }
@@ -556,9 +758,22 @@ void DiffusionSimulator::init_grid() {
 void DiffusionSimulator::setup_for_implicit() {
 	const int N = is_3d ? dim_size * dim_size * dim_size :
 		dim_size * dim_size;
+	fsm.reset();
+	free_resources();
 	A = std::make_unique<SparseMatrix<Real>>(N);
 	setup_A(*A, alpha, grid_size, dim_size, time_step, is_3d);
+	x_gpu.resize(grid->num_points);
+}
 
+void DiffusionSimulator::setup_for_jacobi(const FixedSparseMatrix<Real>& mat) {
+	fsm = std::make_unique<FixedSparseMatrix<float>>();
+	fsm->n = mat.n;
+	fsm->colindex = mat.colindex;
+	fsm->rowstart = mat.rowstart;
+	fsm->value.resize(mat.value.size());
+	for (int i = 0; i < mat.value.size(); i++) {
+		fsm->value[i] = static_cast<float>(mat.value[i]);
+	}
 }
 
 void DiffusionSimulator::simulateTimestep(float time_step) {
@@ -570,6 +785,7 @@ void DiffusionSimulator::simulateTimestep(float time_step) {
 		solve_explicit(time_step);
 		break;
 	case 2:
+	case 3:
 	case 1:
 	{
 		solve_implicit(time_step);
@@ -590,9 +806,7 @@ void getHeatMapColor(float value, float* red, float* green, float* blue)
 	int idx2;
 	float fractBetween = 0;
 
-	if (value <= 0) { idx1 = idx2 = 0; }
-	else if (value >= 1) { idx1 = idx2 = NUM_COLORS - 1; }
-	else
+	if (value <= 0) { idx1 = idx2 = 0; } else if (value >= 1) { idx1 = idx2 = NUM_COLORS - 1; } else
 	{
 		value = value * (NUM_COLORS - 1);
 		idx1 = floor(value);
@@ -611,6 +825,7 @@ void DiffusionSimulator::draw_objects() {
 	switch (m_iTestCase) {
 	case 0:
 	case 2:
+	case 3:
 	case 1:
 	{
 		const auto rad = 0.1f;
@@ -641,4 +856,33 @@ void DiffusionSimulator::onMouse(int x, int y) {
 	old_track_mouse.y = y;
 	track_mouse.x = x;
 	track_mouse.y = y;
+}
+
+void DiffusionSimulator::free_resources() {
+	if (rowstart_srv) rowstart_srv->Release();
+	if (colindex_srv) colindex_srv->Release();
+	if (mat_values_srv) mat_values_srv->Release();
+	if (rhs_srv) rhs_srv->Release();
+	if (x_in_srv) x_in_srv->Release();
+	if (x_in_uav) x_in_uav->Release();
+	if (x_out_srv) x_out_srv->Release();
+	if (x_out_uav) x_out_uav->Release();
+	rowstart_srv = nullptr;
+	colindex_srv = nullptr;
+	mat_values_srv = nullptr;
+	rhs_srv = nullptr;
+	x_in_srv = nullptr;
+	x_in_uav = nullptr;
+	x_out_srv = nullptr;
+	x_out_uav = nullptr;
+	rowstart_buf.Reset();
+	colindex_buf.Reset();
+	mat_values_buf.Reset();
+	rhs_buf.Reset();
+	x_in_buf.Reset();
+	x_out_buf.Reset();
+}
+
+DiffusionSimulator::~DiffusionSimulator() {
+	free_resources();
 }

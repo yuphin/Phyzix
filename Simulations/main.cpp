@@ -394,6 +394,9 @@ int main(int argc, char* argv[])
 #ifdef MASS_SPRING_SYSTEM
 	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(g_pDUC->g_ppd3Device);
 #endif
+#ifdef DIFFUSION_SYSTEM
+	static_cast<DiffusionSimulator*>(g_pSimulator)->init_resources(g_pDUC->g_ppd3Device);
+#endif
 	DXUTMainLoop(); // Enter into the DXUT render loop
 	delete g_pSimulator;
 	DXUTShutdown(); // Shuts down DXUT (includes calls to OnD3D11ReleasingSwapChain() and OnD3D11DestroyDevice())

@@ -10,6 +10,9 @@
     <FxCompile Include="update.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="jacobi_heat.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="util\util.cpp">

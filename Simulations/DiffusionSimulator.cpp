@@ -663,8 +663,8 @@ void DiffusionSimulator::solve_implicit(float time_step) {
 		float* out;
 		context->Map(staging_buf, 0, D3D11_MAP_READ, 0, &mapped_resource);
 		out = (float*)mapped_resource.pData;
-		std::vector<float> debug;
-		debug.assign(out, out + grid->num_points);
+		//std::vector<float> debug;
+		//debug.assign(out, out + grid->num_points);
 		for (int i = 0; i < grid->values.size(); i++) {
 			x[i] = out[i];
 		}
@@ -701,8 +701,6 @@ void DiffusionSimulator::init_resources(ID3D11Device* device) {
 		D3D11_BIND_CONSTANT_BUFFER
 	);
 	hr = device->CreateBuffer(&cb_desc, nullptr, diffusion_cb.GetAddressOf());
-	int a = 4;
-
 }
 
 void DiffusionSimulator::fill_static_resources() {

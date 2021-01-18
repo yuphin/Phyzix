@@ -209,7 +209,7 @@ DiffusionSimulator::DiffusionSimulator(bool adaptive_step) {
 }
 
 const char* DiffusionSimulator::getTestCasesStr() {
-	return "Explicit solver, Implicit solver, Implicit 3D, 3D GPU(Jacobi + PCG)";
+	return "Explicit solver, Implicit solver, Implicit 3D, 3D GPU(Jacobi + PCG), Explicit 3D";
 }
 
 void DiffusionSimulator::reset() {
@@ -543,6 +543,13 @@ init:
 		goto init;
 	}
 	break;
+	case 4:
+	{
+		cout << "3D Explicit Solver!\n";
+		is_3d = true;
+		init_grid();
+	}
+	break;
 	default:
 		cout << "Empty Test!\n";
 		break;
@@ -631,9 +638,19 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 
 		int z = i / size2d;
 
-		if (x == 0 || x == dim_x - 1 || y == 0 || y == dim_y - 1 || (is_3d && z == 0) || (is_3d && z == dim_z - 1)) {
-			new_grid_values[i] = 0;
-			continue;
+
+		if (x == 0 || x == dim_x - 1 || y == 0 || y == dim_z - 1 ) {
+			if (is_3d) {
+				if ( (z == 0 || z == dim_z - 1) || (x == 0 && y == 0) || (x == dim_x - 1 && y == 0) || (x == 0 && y == dim_y - 1) || (x == dim_x - 1 && y == dim_y - 1)) {
+					new_grid_values[i] = 0;
+					continue;
+				}
+			}
+			else {
+				new_grid_values[i] = 0;
+				continue;
+			}
+			
 		}
 
 		bool last_row = y == (dim_y - 1);
@@ -764,6 +781,7 @@ void DiffusionSimulator::pass_time_step_variable(float time_step) {
 }
 
 void DiffusionSimulator::init_resources(ID3D11Device* device) {
+	
 	this->device = device;
 	HRESULT hr = S_OK;
 	ID3DBlob* cs_blob = nullptr;
@@ -779,7 +797,7 @@ void DiffusionSimulator::init_resources(ID3D11Device* device) {
 	CD3D11_BUFFER_DESC cb_desc(
 		sizeof(DiffusionCB),
 		D3D11_BIND_CONSTANT_BUFFER
-	);
+	); 
 	hr = device->CreateBuffer(&cb_desc, nullptr, diffusion_cb.GetAddressOf());
 }
 
@@ -869,6 +887,11 @@ void DiffusionSimulator::simulateTimestep(float time_step) {
 		solve_implicit(time_step);
 		break;
 	}
+	case 4:
+	{
+		solve_explicit(time_step);
+		break;
+	}
 	}
 }
 
@@ -904,12 +927,13 @@ void DiffusionSimulator::draw_objects() {
 	case 0:
 	case 2:
 	case 3:
+	case 4:
 	case 1:
 	{
 		const auto rad = 0.1f;
 		for (int i = 0; i < grid->num_points; i++) {
 			float r, g, b;
-			getHeatMapColor(grid->values[i] / 100, &r, &g, &b);
+			getHeatMapColor(grid->values[i] / 1000, &r, &g, &b);
 			DUC->setUpLighting(Vec3(r, g, b), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
 			DUC->drawSphere(grid->pos_internal[i], { rad,rad,rad });
 		}

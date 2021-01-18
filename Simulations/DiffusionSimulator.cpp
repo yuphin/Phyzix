@@ -307,6 +307,16 @@ void TW_CALL DiffusionSimulator::get_jacobi_iters(void* value, void* client_data
 	*val = *((static_cast<ClientData*>(client_data))->jacobi_iters);
 }
 
+void TW_CALL DiffusionSimulator::set_alpha(const void* value, void* client_data) {
+	ClientData* client = static_cast<ClientData*>(client_data);
+	client->self->alpha = *static_cast<const double*>(value);
+}
+
+void TW_CALL DiffusionSimulator::get_alpha(void* value, void* client_data) {
+	double* val = static_cast<double*>(value);
+	*val = *((static_cast<ClientData*>(client_data))->alpha);
+}
+
 void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
 	this->context = DUC->g_pd3dImmediateContext;
@@ -317,14 +327,17 @@ void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	data->dim_z = &dim_z;
 	data->jacobi_iters = &num_jacobi_iters;
 	data->cg_iters = &num_cg_iters;
+	data->alpha = &alpha;
 	data->self = this;
 	TwAddVarCB(DUC->g_pTweakBar, "Grid Size", TW_TYPE_INT32, set_dim_size, 
 		get_dim_size, reinterpret_cast<void*>(data.get()), "step=1 min=1");
+
 	TwAddVarCB(DUC->g_pTweakBar, "X", TW_TYPE_INT32, set_dim_x,
 		get_dim_x, reinterpret_cast<void*>(data.get()), "step=1 min=1");
 	TwAddVarCB(DUC->g_pTweakBar, "Y", TW_TYPE_INT32, set_dim_y,
 		get_dim_y, reinterpret_cast<void*>(data.get()), "step=1 min=1");
-
+	TwAddVarCB(DUC->g_pTweakBar, "Alpha", TW_TYPE_DOUBLE, set_alpha,
+		get_alpha, reinterpret_cast<void*>(data.get()), "step=1 min=1");
 
 	if (m_iTestCase > 1) {
 		TwAddVarCB(DUC->g_pTweakBar, "Z", TW_TYPE_INT32, set_dim_z,
@@ -349,6 +362,7 @@ void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	}
 
 	TwAddVarRW(DUC->g_pTweakBar, "Show Delta", TW_TYPE_BOOLCPP, &show_delta_temp, "");
+	TwAddVarRW(DUC->g_pTweakBar, "Clamp Timestep(for explicit)", TW_TYPE_BOOLCPP, &clamp_ts, "");
 }
 
 static bool is_any_boundary(int i, int j, int dim_x, int dim_y, int dim_z, bool is_3d,
@@ -609,14 +623,15 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	// => time_step <= dx2 / (2 * n * alpha)
 	// With differing grid dimensions we have a * dt * (inv_dx2 + inv_dy2 + inv_dz2) <= 1 / 2
 	// => time_step <= inv_inv / (2 * alpha)
-	constexpr double EPS = 0.1;
-	Real val = inv_inv * (1 - EPS) / (2 * (1 + EPS) * alpha);
-	if (time_step >= val) {
-		std::cout << "Instability detected, clamping time_step from " << time_step << " to ";
-		time_step = val;
-		std::cout << time_step << "\n";
+	if (clamp_ts) {
+		constexpr double EPS = 0.1;
+		Real val = inv_inv * (1 - EPS) / (2 * (1 + EPS) * alpha);
+		if (time_step >= val) {
+			std::cout << "INFO: Instability detected, clamping time_step from " << time_step << " to ";
+			time_step = val;
+			std::cout << time_step << "\n";
+		}
 	}
-
 	/*
 		0 2 4 6 8
 		1 3 5 7 9
@@ -720,7 +735,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 		}
 		//const Real F = alpha * time_step  * inv_d;
 
-		new_grid_values[i] = (x_diff * inv_dx2 + y_diff * inv_dy2 + z_diff * inv_dz2) * alpha  * alpha * time_step + it;
+		new_grid_values[i] = (x_diff * inv_dx2 + y_diff * inv_dy2 + z_diff * inv_dz2) * alpha * time_step + it;
 	}
 
 	previous_grid->values = std::move(grid->values);

@@ -39,6 +39,7 @@ struct ClientData {
 	int* dim_z;
 	int* cg_iters;
 	int* jacobi_iters;
+	double* alpha;
 };
 
 class DiffusionSimulator:public Simulator{
@@ -78,6 +79,8 @@ public:
 	static void TW_CALL get_cg_iters(void* value, void* client_data);
 	static void TW_CALL set_jacobi_iters(const void* value, void* client_data);
 	static void TW_CALL get_jacobi_iters(void* value, void* client_data);
+	static void TW_CALL set_alpha(const void* value, void* client_data);
+	static void TW_CALL get_alpha(void* value, void* client_data);
 private:
 	ID3D11DeviceContext* context;
 	ID3D11Device* device;
@@ -92,7 +95,7 @@ private:
 	int dim_y = 10;
 	int dim_z = 10;
 	Real grid_size = 1;
-	double alpha = 1;
+	double alpha = 1.0;
 	Vec3  movable_obj_pos;
 	Vec3  movable_obj_final_pos;
 	Vec3  rotate;
@@ -106,6 +109,7 @@ private:
 	bool adaptive_step;
 	bool is_3d = false;
 	bool use_gpu = false;
+	bool clamp_ts = true;
 	int num_jacobi_iters = 50;
 	int num_cg_iters = 20;
 

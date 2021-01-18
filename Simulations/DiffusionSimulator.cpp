@@ -574,7 +574,6 @@ void DiffusionSimulator::case_changed_with_ts(int test_case, float time_step) {
 }
 
 Grid* DiffusionSimulator::solve_explicit(float time_step) {
-
 	std::vector<Real> new_grid_values = grid->create_new();
 	const int N = is_3d ? dim_x * dim_y * dim_z : dim_x * dim_y;
 	const int size2d = dim_x * dim_y;
@@ -591,7 +590,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	const Real inv_d = inv_dx2 + inv_dy2 + inv_dz2;
 	const Real inv_inv = 1 / inv_d;
 
-	bool is_dim_odd = dim_size % 2;
+	bool is_dim_odd = dim_y % 2;
 	// Stability conditions:
 	// In 1D:
 	// u_i^{t+1} = u_i^{t} + F * (u_i^{t} - 2 * u_i^{t} + u_{i-1}^{t} )
@@ -643,7 +642,14 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	*/
 
 	// std::cout << "starting\n";
+	bool c = false;
+	if (dim_x == 3 && dim_y == 12) {
+		c = true;
+	}
 	for (int i = 0; i < N; i++) {
+		if (i == 33 && c ) {
+			int a = 33;
+		}
 		Real it = grid->values[i];
 		auto neutralized_i = i % size2d;
 
@@ -651,10 +657,11 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 		Real y_diff = 0;
 		Real z_diff = 0;
 
-		int y = (neutralized_i / (2 * dim_x)) * 2;
-		if ((is_dim_odd && y != (dim_y - 1)) || !is_dim_odd) {
-			y += neutralized_i % 2 == 0 ? 0 : 1;
-		}
+		//int y = (neutralized_i / (2 * dim_x)) * 2;
+		int y = ((i % size2d) / (2 * dim_x)) * 2 + (i % 2 ? 1 : 0);
+		//if ((is_dim_odd && y != (dim_y - 1)) || !is_dim_odd) {
+		//	y += neutralized_i % 2 == 0 ? 0 : 1;
+		//}
 
 		int x = 0;
 		x = (neutralized_i % (2 * dim_x) - (neutralized_i % 2 == 0 ? 0 : 1)) / 2;
@@ -666,7 +673,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 		int z = i / size2d;
 
 
-		if (x == 0 || x == dim_x - 1 || y == 0 || y == dim_z - 1 ) {
+		if (x == 0 || x == dim_x - 1 || y == 0 || y == dim_y - 1 ) {
 			if (is_3d) {
 				if ( (z == 0 || z == dim_z - 1) || (x == 0 && y == 0) || (x == dim_x - 1 && y == 0) || (x == 0 && y == dim_y - 1) || (x == dim_x - 1 && y == dim_y - 1)) {
 					new_grid_values[i] = 0;
@@ -677,7 +684,6 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 				new_grid_values[i] = 0;
 				continue;
 			}
-			
 		}
 
 		bool last_row = y == (dim_y - 1);
@@ -714,7 +720,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 		}
 		//const Real F = alpha * time_step  * inv_d;
 
-		new_grid_values[i] = (x_diff * inv_dx2 + y_diff * inv_dy2 + z_diff * inv_dz2) * alpha * time_step + it;
+		new_grid_values[i] = (x_diff * inv_dx2 + y_diff * inv_dy2 + z_diff * inv_dz2) * alpha  * alpha * time_step + it;
 	}
 
 	previous_grid->values = std::move(grid->values);

@@ -269,6 +269,7 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </EntryPointName>
     </FxCompile>
+    <FxCompile Include="jacobi_heat.hlsl" />
     <FxCompile Include="update.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>

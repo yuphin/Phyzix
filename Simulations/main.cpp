@@ -257,9 +257,13 @@ void CALLBACK OnFrameMove( double dTime, float fElapsedTime, void* pUserContext 
 			g_pDUC->g_pTweakBar = nullptr;
 		}
 		initTweakBar();
-		g_pSimulator->notifyCaseChanged(g_iTestCase);
+		// This has a weird behaviour in debug mode...
+#ifdef DIFFUSION_SYSTEM
+		static_cast<DiffusionSimulator*>(g_pSimulator)->case_changed_with_ts(g_iTestCase, g_fTimestep);
+#else
+		g_pSimulator->notifyCaseChanged(g_iTestCase, g_fTimestep);
+#endif
 		g_pSimulator->initUI(g_pDUC);
-
 		g_iPreTestCase = g_iTestCase;
 	}
 	if(!g_bSimulateByStep){
@@ -384,7 +388,6 @@ int main(int argc, char* argv[])
 #endif
 #ifdef DIFFUSION_SYSTEM
 	g_pSimulator = new DiffusionSimulator();
-	static_cast<DiffusionSimulator*>(g_pSimulator)->pass_time_step_variable(g_fTimestep);
 #endif
 #ifdef SANDBOX
 	g_pSimulator = new Sandbox();
@@ -401,6 +404,10 @@ int main(int argc, char* argv[])
 	DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, 1280, 960 );
 #ifdef MASS_SPRING_SYSTEM
 	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(g_pDUC->g_ppd3Device);
+#endif
+#ifdef DIFFUSION_SYSTEM
+	static_cast<DiffusionSimulator*>(g_pSimulator)->init_resources(g_pDUC->g_ppd3Device);
+	static_cast<DiffusionSimulator*>(g_pSimulator)->pass_time_step_variable(g_fTimestep);
 #endif
 	DXUTMainLoop(); // Enter into the DXUT render loop
 	delete g_pSimulator;

@@ -54,14 +54,24 @@ Grid::Grid(int dim_x, int dim_y, int dim_z, bool is_3d) : dim_x(dim_x), is_3d(is
 		..
 		0 0 0 0 ... 0
 	*/
-	values[3] = 1e10;
+	int dim_sqr = dim_x * dim_y;
+	int z_with_check = is_3d ? dim_z : 1;
+	bool is_odd = dim_y % 2;
+	int far_offset = dim_x * dim_y * (z_with_check - 1);
+	values[3 + far_offset] = 1e6;
+	values[3] = 1e6;
+	values[(is_odd ? dim_sqr -1  - (dim_x - 1) : dim_sqr - 3)] = 1e7;
+	values[(is_odd ? dim_sqr -1  - (dim_x - 1) : dim_sqr - 3) + far_offset] = 1e7;
+	values[2 * (dim_x - 2) + 1] = 1e7;
+	values[2 * (dim_x - 2) + 1 + far_offset] = 1e7;
+	values[is_odd ? dim_sqr - dim_x + 1 - (2 * dim_x -2) : dim_sqr - 1 - 2 * (dim_x - 2) -1] = 1e7;
+	values[(is_odd ? dim_sqr - dim_x + 1 - (2 * dim_x - 2) : dim_sqr - 1 - 2 * (dim_x - 2) - 1) + far_offset] = 1e7;
 
 	// R = 0.1
 	// For easier specification of positions, we naively assign position values
 	Vec3 L = Vec3(-0.1 * dim_x, 0, 0);
 	Vec3 T = Vec3(0, 0.1 * dim_y, 0);
 	int k_iter = is_3d ? dim_z : 1;
-	int dim_sqr = dim_x * dim_y;
 	for (int k = 0; k < k_iter; k++) {
 		int k_offset = dim_sqr * k;
 		for (int i = 0; i < dim_y - 1; i += 2) {
@@ -99,7 +109,6 @@ std::vector<Real> Grid::create_new()
 {
 	std::vector<Real> result;
 	result.resize(num_points);
-	result[3] = 1e10;
 	return result;
 }
 
@@ -568,6 +577,12 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	const Real dx2 = dx * dx;
 	const Real dy2 = dy * dy;
 	const Real dz2 = dz * dz;
+	const Real inv_dx2 = 1 / dx2;
+	const Real inv_dy2 = 1 / dy2;
+	const Real inv_dz2 = 1 / dz2;
+	const Real inv_d = inv_dx2 + inv_dy2 + inv_dz2;
+	const Real inv_inv = 1 / inv_d;
+
 	bool is_dim_odd = dim_size % 2;
 	// Stability conditions:
 	// In 1D:
@@ -585,10 +600,14 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	// The limiting time_step value is
 	//  alpha * time_step / dx2 <= 1/(2*n)
 	// => time_step <= dx2 / (2 * n * alpha)
-	constexpr double EPS = 0.01;
-	Real val = dx2 / ((is_3d ? 6 : 4) * (1 + EPS) * alpha);
+	// With differing grid dimensions we have a * dt * (inv_dx2 + inv_dy2 + inv_dz2) <= 1 / 2
+	// => time_step <= inv_inv / (2 * alpha)
+	constexpr double EPS = 0.1;
+	Real val = inv_inv / (2 * (1 + EPS) * alpha);
 	if (time_step >= val) {
+		std::cout << "Instability detected, clamping time_step from " << time_step << " to ";
 		time_step = val;
+		std::cout << " time_step\n";
 	}
 
 	/*
@@ -617,12 +636,12 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 
 	// std::cout << "starting\n";
 	for (int i = 0; i < N; i++) {
-		float it = grid->values[i];
+		Real it = grid->values[i];
 		auto neutralized_i = i % size2d;
 
-		float x_diff = 0;
-		float y_diff = 0;
-		float z_diff = 0;
+		Real x_diff = 0;
+		Real y_diff = 0;
+		Real z_diff = 0;
 
 		int y = (neutralized_i / (2 * dim_x)) * 2;
 		if ((is_dim_odd && y != (dim_y - 1)) || !is_dim_odd) {
@@ -685,8 +704,9 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 			z_diff += (i + dim_x * dim_y) >= N ? 0 : grid->values[i + dim_x * dim_y];
 			z_diff -= 2 * it;
 		}
-		//const Real F = alpha * time_step / (dx2);
-		new_grid_values[i] = (x_diff / dx2 + y_diff / dy2 + z_diff / dz2) * alpha * time_step + it;
+		//const Real F = alpha * time_step  * inv_d;
+
+		new_grid_values[i] = (x_diff * inv_dx2 + y_diff * inv_dy2 + z_diff * inv_dz2) * alpha * time_step + it;
 	}
 
 	grid->values = std::move(new_grid_values);
@@ -933,7 +953,7 @@ void DiffusionSimulator::draw_objects() {
 		const auto rad = 0.1f;
 		for (int i = 0; i < grid->num_points; i++) {
 			float r, g, b;
-			getHeatMapColor(grid->values[i] / 1000, &r, &g, &b);
+			getHeatMapColor(grid->values[i] / 1e3, &r, &g, &b);
 			DUC->setUpLighting(Vec3(r, g, b), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
 			DUC->drawSphere(grid->pos_internal[i], { rad,rad,rad });
 		}

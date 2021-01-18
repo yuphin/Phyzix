@@ -9,12 +9,12 @@ using namespace Microsoft::WRL;
 //Implement your own grid class for saving grid data
 struct Grid {
 	// Constructors
-	Grid(int dim_x, bool is_3d = false);
+	Grid(int dim_x, int dim_y, int dim_z, bool is_3d = false);
 	std::vector<Real> values;
 	std::vector<Vec3> positions;
 	std::vector<Vec3> pos_internal;
 	std::vector<int> boundary_indices;
-	int num_points, dim_x;
+	int num_points, dim_x, dim_y, dim_z;
 	// For GPU
 	std::vector<float> vals_gpu;
 	std::vector<Real> create_new();
@@ -34,6 +34,9 @@ struct DiffusionCB {
 struct ClientData {
 	DiffusionSimulator* self;
 	int* dim_size;
+	int* dim_x;
+	int* dim_y;
+	int* dim_z;
 	int* cg_iters;
 	int* jacobi_iters;
 };
@@ -63,7 +66,13 @@ public:
 	void fill_static_resources();
 	void fill_dynamic_resources(const std::vector<Real>& x);
 	static void TW_CALL set_dim_size(const void* value, void* client_data);
+	static void TW_CALL set_dim_x(const void* value, void* client_data);
+	static void TW_CALL set_dim_y(const void* value, void* client_data);
+	static void TW_CALL set_dim_z(const void* value, void* client_data);
 	static void TW_CALL get_dim_size(void* value, void* client_data);
+	static void TW_CALL get_dim_x(void* value, void* client_data);
+	static void TW_CALL get_dim_y(void* value, void* client_data);
+	static void TW_CALL get_dim_z(void* value, void* client_data);
 	static void TW_CALL set_cg_iters(const void* value, void* client_data);
 	static void TW_CALL get_cg_iters(void* value, void* client_data);
 	static void TW_CALL set_jacobi_iters(const void* value, void* client_data);
@@ -77,7 +86,10 @@ private:
 	void free_resources();
 	// Attributes
 	// Assume uniform grid for now
-	int dim_size = 10;
+	int dim_size = 6;
+	int dim_x = 6;
+	int dim_y = 6;
+	int dim_z = 6;
 	Real grid_size = 1;
 	double alpha = 1;
 	Vec3  movable_obj_pos;
@@ -121,5 +133,6 @@ private:
 	std::unique_ptr<FixedSparseMatrix<float>> fsm = nullptr;
 	std::vector<float> x_gpu;
 	DiffusionCB cb;
+
 };
 #endif

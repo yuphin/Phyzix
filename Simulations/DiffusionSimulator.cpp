@@ -700,7 +700,7 @@ void DiffusionSimulator::pass_time_step_variable(float time_step) {
 }
 
 void DiffusionSimulator::init_resources(ID3D11Device* device) {
-	/*
+	
 	this->device = device;
 	HRESULT hr = S_OK;
 	ID3DBlob* cs_blob = nullptr;
@@ -717,7 +717,7 @@ void DiffusionSimulator::init_resources(ID3D11Device* device) {
 		sizeof(DiffusionCB),
 		D3D11_BIND_CONSTANT_BUFFER
 	); 
-	hr = device->CreateBuffer(&cb_desc, nullptr, diffusion_cb.GetAddressOf());*/
+	hr = device->CreateBuffer(&cb_desc, nullptr, diffusion_cb.GetAddressOf());
 }
 
 void DiffusionSimulator::fill_static_resources() {
@@ -852,7 +852,7 @@ void DiffusionSimulator::draw_objects() {
 		const auto rad = 0.1f;
 		for (int i = 0; i < grid->num_points; i++) {
 			float r, g, b;
-			getHeatMapColor(grid->values[i] / 100, &r, &g, &b);
+			getHeatMapColor(grid->values[i] / 1000, &r, &g, &b);
 			DUC->setUpLighting(Vec3(r, g, b), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
 			DUC->drawSphere(grid->pos_internal[i], { rad,rad,rad });
 		}

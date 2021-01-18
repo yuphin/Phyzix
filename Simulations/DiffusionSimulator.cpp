@@ -611,7 +611,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	// With differing grid dimensions we have a * dt * (inv_dx2 + inv_dy2 + inv_dz2) <= 1 / 2
 	// => time_step <= inv_inv / (2 * alpha)
 	constexpr double EPS = 0.1;
-	Real val = inv_inv / (2 * (1 + EPS) * alpha);
+	Real val = inv_inv * (1 - EPS) / (2 * (1 + EPS) * alpha);
 	if (time_step >= val) {
 		std::cout << "Instability detected, clamping time_step from " << time_step << " to ";
 		time_step = val;

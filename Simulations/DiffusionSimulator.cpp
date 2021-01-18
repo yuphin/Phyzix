@@ -325,6 +325,7 @@ void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	TwAddVarCB(DUC->g_pTweakBar, "Y", TW_TYPE_INT32, set_dim_y,
 		get_dim_y, reinterpret_cast<void*>(data.get()), "step=1 min=1");
 
+
 	if (m_iTestCase > 1) {
 		TwAddVarCB(DUC->g_pTweakBar, "Z", TW_TYPE_INT32, set_dim_z,
 			get_dim_z, reinterpret_cast<void*>(data.get()), "step=1 min=1");
@@ -346,6 +347,8 @@ void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	} else {
 		TwRemoveVar(DUC->g_pTweakBar, "Num Jacobi Iterations");
 	}
+
+	TwAddVarRW(DUC->g_pTweakBar, "Show Delta", TW_TYPE_BOOLCPP, &show_delta_temp, "");
 }
 
 static bool is_any_boundary(int i, int j, int dim_x, int dim_y, int dim_z, bool is_3d,
@@ -709,6 +712,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 		new_grid_values[i] = (x_diff * inv_dx2 + y_diff * inv_dy2 + z_diff * inv_dz2) * alpha * time_step + it;
 	}
 
+	previous_grid->values = std::move(grid->values);
 	grid->values = std::move(new_grid_values);
 
 	return nullptr;
@@ -793,6 +797,8 @@ void DiffusionSimulator::solve_implicit(float time_step) {
 	for (const auto& idx : grid->boundary_indices) {
 		x[idx] = 0;
 	}
+
+	previous_grid->values = std::move(grid->values);
 	grid->values = std::move(x);
 }
 
@@ -869,6 +875,7 @@ void DiffusionSimulator::fill_dynamic_resources(const std::vector<Real>& x) {
 
 void DiffusionSimulator::init_grid() {
 	grid = std::make_unique<Grid>(dim_x, dim_y, dim_z, is_3d);
+	previous_grid = std::make_unique<Grid>(dim_x, dim_y, dim_z, is_3d);
 }
 
 void DiffusionSimulator::setup_for_implicit() {
@@ -952,8 +959,15 @@ void DiffusionSimulator::draw_objects() {
 	{
 		const auto rad = 0.1f;
 		for (int i = 0; i < grid->num_points; i++) {
-			float r, g, b;
-			getHeatMapColor(grid->values[i] / 1e3, &r, &g, &b);
+			float r = 0, g = 0, b = 0;
+			if (!show_delta_temp) {
+				getHeatMapColor(grid->values[i] / 1e3, &r, &g, &b);
+			}
+			else {
+				float diff = grid->values[i] - previous_grid->values[i];
+				r = diff >= 0 ? (diff / 1e3) : 0;
+				b = diff < 0 ? (diff / 1e3) * -1 : 0;
+			}
 			DUC->setUpLighting(Vec3(r, g, b), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
 			DUC->drawSphere(grid->pos_internal[i], { rad,rad,rad });
 		}

@@ -99,6 +99,7 @@ private:
 	Point2D track_mouse;
 	Point2D old_track_mouse;
 	std::unique_ptr<Grid> grid = nullptr;
+	std::unique_ptr<Grid> previous_grid = nullptr;
 	std::unique_ptr<SparseMatrix<Real>> A = nullptr;
 	float time_step;
 	bool adaptive_step;
@@ -106,6 +107,9 @@ private:
 	bool use_gpu = false;
 	int num_jacobi_iters = 50;
 	int num_cg_iters = 20;
+
+	bool show_delta_temp = false;
+
 	std::unique_ptr<ClientData> data;
 	ComPtr<ID3D11ComputeShader> compute_shader;
 	// Buffers

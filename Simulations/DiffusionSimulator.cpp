@@ -565,6 +565,11 @@ init:
 	}
 }
 
+void DiffusionSimulator::case_changed_with_ts(int test_case, float time_step) {
+	this->time_step = &time_step;
+	notifyCaseChanged(test_case);
+}
+
 Grid* DiffusionSimulator::solve_explicit(float time_step) {
 
 	std::vector<Real> new_grid_values = grid->create_new();
@@ -607,7 +612,7 @@ Grid* DiffusionSimulator::solve_explicit(float time_step) {
 	if (time_step >= val) {
 		std::cout << "Instability detected, clamping time_step from " << time_step << " to ";
 		time_step = val;
-		std::cout << " time_step\n";
+		std::cout << time_step << "\n";
 	}
 
 	/*
@@ -797,7 +802,7 @@ void DiffusionSimulator::solve_implicit(float time_step) {
 }
 
 void DiffusionSimulator::pass_time_step_variable(float time_step) {
-	this->time_step = time_step;
+	this->time_step = &time_step;
 }
 
 void DiffusionSimulator::init_resources(ID3D11Device* device) {
@@ -877,7 +882,7 @@ void DiffusionSimulator::setup_for_implicit() {
 	fsm.reset();
 	free_resources();
 	A = std::make_unique<SparseMatrix<Real>>(N);
-	setup_A(*A, alpha, grid_size, dim_x, dim_y, dim_z, time_step, is_3d);
+	setup_A(*A, alpha, grid_size, dim_x, dim_y, dim_z, *time_step, is_3d);
 	x_gpu.resize(grid->num_points);
 }
 

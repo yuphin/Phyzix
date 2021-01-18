@@ -53,6 +53,7 @@ public:
 	void reset() override;
 	void drawFrame(ID3D11DeviceContext* pd3dImmediateContext) override;
 	void notifyCaseChanged(int testCase) override;
+	void case_changed_with_ts(int test_case, float time_step);
 	void simulateTimestep(float timeStep) override;
 	void externalForcesCalculations(float timeElapsed) override;
 	void onClick(int x, int y) override;
@@ -86,10 +87,10 @@ private:
 	void free_resources();
 	// Attributes
 	// Assume uniform grid for now
-	int dim_size = 6;
-	int dim_x = 6;
-	int dim_y = 6;
-	int dim_z = 6;
+	int dim_size = 10;
+	int dim_x = 10;
+	int dim_y = 10;
+	int dim_z = 10;
 	Real grid_size = 1;
 	double alpha = 1;
 	Vec3  movable_obj_pos;
@@ -100,7 +101,7 @@ private:
 	Point2D old_track_mouse;
 	std::unique_ptr<Grid> grid = nullptr;
 	std::unique_ptr<SparseMatrix<Real>> A = nullptr;
-	float time_step;
+	float* time_step;
 	bool adaptive_step;
 	bool is_3d = false;
 	bool use_gpu = false;

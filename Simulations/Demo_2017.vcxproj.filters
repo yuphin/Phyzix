@@ -40,6 +40,7 @@
       <Filter>Simulator</Filter>
     </ClCompile>
     <ClCompile Include="Sandbox.cpp" />
+    <ClCompile Include="SPHSimulator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="collisionDetect.h">
@@ -97,6 +98,7 @@
       <Filter>Utilities</Filter>
     </ClInclude>
     <ClInclude Include="Sandbox.h" />
+    <ClInclude Include="SPHSimulator.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utilities">

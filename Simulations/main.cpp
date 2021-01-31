@@ -23,9 +23,9 @@ using namespace GamePhysics;
 //#define TEMPLATE_DEMO
 //#define MASS_SPRING_SYSTEM
 //#define RIGID_BODY_SYSTEM
-//#define SPH_SYSTEM
+#define SPH_SYSTEM
 //#define DIFFUSION_SYSTEM
-#define SANDBOX
+//#define SANDBOX
 
 #ifdef TEMPLATE_DEMO
 #include "TemplateSimulator.h"
@@ -36,9 +36,6 @@ using namespace GamePhysics;
 #ifdef RIGID_BODY_SYSTEM
 #include "RigidBodySystemSimulator.h"
 #endif
-#ifdef SPH_SYSTEM
-//#include "SPHSystemSimulator.h"
-#endif
 #ifdef DIFFUSION_SYSTEM
 #include "DiffusionSimulator.h"
 #endif
@@ -46,6 +43,9 @@ using namespace GamePhysics;
 #include "Sandbox.h"
 #endif
 
+#ifdef SPH_SYSTEM
+#include "SPHSimulator.h"
+#endif
 
 DrawingUtilitiesClass * g_pDUC;
 Simulator * g_pSimulator;
@@ -261,7 +261,7 @@ void CALLBACK OnFrameMove( double dTime, float fElapsedTime, void* pUserContext 
 #ifdef DIFFUSION_SYSTEM
 		static_cast<DiffusionSimulator*>(g_pSimulator)->case_changed_with_ts(g_iTestCase, g_fTimestep);
 #else
-		g_pSimulator->notifyCaseChanged(g_iTestCase, g_fTimestep);
+		g_pSimulator->notifyCaseChanged(g_iTestCase);
 #endif
 		g_pSimulator->initUI(g_pDUC);
 		g_iPreTestCase = g_iTestCase;
@@ -383,15 +383,17 @@ int main(int argc, char* argv[])
 	g_pSimulator= new RigidBodySystemSimulator();
 	((RigidBodySystemSimulator*)g_pSimulator)->pass_time_step_variable(g_fTimestep);
 #endif
-#ifdef SPH_SYSTEM
-	//g_pSimulator= new SPHSystemSimulator();
-#endif
 #ifdef DIFFUSION_SYSTEM
 	g_pSimulator = new DiffusionSimulator();
 #endif
 #ifdef SANDBOX
 	g_pSimulator = new Sandbox();
 	((Sandbox*)g_pSimulator)->pass_time_step_variable(g_fTimestep);
+#endif
+
+#ifdef SPH_SYSTEM
+	g_pSimulator = new SPHSimulator();
+	((SPHSimulator*)g_pSimulator)->pass_time_step_variable(g_fTimestep);
 #endif
 	g_pSimulator->reset();
 

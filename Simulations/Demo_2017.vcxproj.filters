@@ -99,6 +99,9 @@
     </ClInclude>
     <ClInclude Include="Sandbox.h" />
     <ClInclude Include="SPHSimulator.h" />
+    <ClInclude Include="Kernel.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utilities">

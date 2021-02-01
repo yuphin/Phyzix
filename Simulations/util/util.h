@@ -43,5 +43,13 @@ inline Vec3 operator*(Vec3& v, Mat4& m) {
     auto res = XMVector3Transform(v.toDirectXVector(), m.toDirectXMatrix());
     return Vec3(res);
 }
+template<class T>
+constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
+    return (v < lo) ? lo : (hi < v) ? hi : v;
+}
+template <typename T>
+constexpr int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
 
 #endif

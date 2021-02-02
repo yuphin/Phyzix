@@ -1,6 +1,6 @@
 #include "SPHSimulator.h"
 #include "util/util.h"
-#define DIM 10
+#define DIM 4
 SPHSimulator::SPHSimulator() {
 	m_iTestCase = 0;
 	num_particles = DIM * DIM;
@@ -19,7 +19,7 @@ void SPHSimulator::init_sim() {
 	int k = 2;
 	const double two_r = particle_radius * 2.0f;
 	const auto& pr = particle_radius;
-	auto l = Vec3(-DIM * two_r, 0, 0);
+	auto l = Vec3(-DIM/2 * two_r, 0, 0);
 	auto t = Vec3(0, DIM * two_r, 0);
 	auto n = Vec3(-DIM * two_r, 0, 0);
 	// Fluids
@@ -27,7 +27,7 @@ void SPHSimulator::init_sim() {
 		for (int j = 0; j < DIM; j++) {
 			// Note: The coefficient here is tweaked depending on the scene
 			// TODO: Investigate
-			dv = is_2d ? 1 * M_PI * pr * pr : 1 * (4.0 * M_PI / 3) * pr * pr * pr;
+			dv = is_2d ? 1.07 * M_PI * pr * pr : 1 * (4.0 * M_PI / 3) * pr * pr * pr;
 			dm = rho_0 * dv;
 			const Vec3 pos = Vec3(i * two_r, j * two_r, 0);
 			particles.push_back(Particle(dm, dv, l + t + pos));
@@ -210,12 +210,14 @@ void SPHSimulator::solve_pressure(float time_step) {
 	// Apply relaxed Jacobi iteration with omega = 0.5
 	const Real omega = 0.5;
 	const int max_iterations = 100;
+	const int min_iterations = 1;
 	const Real max_error = 0.05; // percent
 	const Real eta = max_error * 0.01 * rho_0;
 	int iterations = 0;
 	Real avg_rho_err;
 	bool terminate = false;
-	while (!terminate && (iterations < max_iterations)) {
+	// TODO: Adaptive iteration
+	while ((!terminate || min_iterations > iterations) && (iterations < max_iterations)) {
 		avg_rho_err = 0;
 		terminate = true;
 		// Start iteration
@@ -294,7 +296,7 @@ void SPHSimulator::solve_pressure(float time_step) {
 				}
 				const Real ap =  dt2 * (particles[i].aii + sum);
 				const Real new_rho = rho_0 * (ap - s) + rho_0;
-				avg_rho_err += fabs(new_rho - rho_0);
+				avg_rho_err += (new_rho - rho_0);
 			}
 		}
 		for (int i = 0; i < particles.size(); i++) {

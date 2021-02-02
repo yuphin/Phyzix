@@ -10,21 +10,23 @@
 
 
 struct Particle {
-	Particle(float mass, const Vec3& pos, bool boundary = false) {
-		this->mass = mass;
+	Particle(Real dm, Real dv, const Vec3& pos, bool boundary = false) {
+		this->mass = dm;
+		this->dv = dv;
 		this->pos = pos;
 	}
-	float mass = 0;
+	Real mass = 0;
+	Real dv = 0;
 	Vec3 accel = Vec3();
 	Vec3 vel = Vec3();
 	Vec3 pos = Vec3();
 	Vec3 force = Vec3();
-	Real density = 0;
+	Real rho = 0;
 	Real pressure = 0;
 	Real old_pressure = 0;
 	Real aii;
-	Vec3 m_divRhoSqr_grad;
-	Vec3 m_divRhoSqr_p_grad;
+	Vec3 dv_div_rhoSqr_grad;
+	Vec3 dv_divRhoSqr_p_grad;
 	Real rho_star;
 };
 
@@ -43,13 +45,13 @@ public:
 	void onMouse(int x, int y) override;
 private:
 	void init_sim();
-	void compute_boundary_masses();
+	void compute_boundary_volumes();
+	void update_time_step(float& time_step);
 	void compute_density();
 	void compute_non_pressure_forces();
 	void enforce_continuity(float time_step);
 	void solve_pressure(float time_step);
 	void integrate(float time_step);
-	void handle_collision(Particle& particle, float dt);
 
 	ID3D11DeviceContext* context = nullptr;
 	ID3D11Device* device = nullptr;
@@ -61,10 +63,13 @@ private:
 	Vec3 gravity;
 	Real particle_radius;
 	Real support_radius;
-	CubicSplineKernel kernel;
+	CubicSplineKernel2 kernel;
 	std::vector<Particle> particles;
 	std::vector<Particle> boundary_particles;
 	Real rho_0;
-
+	Real cfl_k = 1;
+	bool is_2d = true;
+	Real dv = 0;
+	Real dm = 0;
 };
 

@@ -1,11 +1,11 @@
 #include "SPHSimulator.h"
 #include "util/util.h"
-#define DIM 5
+#define DIM 9
 SPHSimulator::SPHSimulator() {
 	m_iTestCase = 0;
 	num_particles = DIM * DIM;
 	gravity = Vec3(0, -9.81, 0);
-	particle_radius = 0.2;
+	particle_radius = 0.3;
 	rho_0 = 1000;
 	// For kernel
 	support_radius = 4 * particle_radius;
@@ -24,7 +24,7 @@ void SPHSimulator::init_sim() {
 	// Fluids
 	for (int i = 0; i < DIM; i++) {
 		for (int j = 0; j < DIM; j++) {
-			dv = is_2d ? 0.5 * two_r * two_r : 0.5 * two_r * two_r * two_r;
+			dv = is_2d ? 0.25 * M_PI * two_r * two_r : 0.25 * (4.0 * M_PI / 3) * two_r * two_r * two_r;
 			dm = rho_0 * dv;
 			const Vec3 pos = Vec3(i * two_r, j * two_r, 0);
 			particles.push_back(Particle(dm, dv, l + t + pos));
@@ -291,7 +291,7 @@ void SPHSimulator::solve_pressure(float time_step) {
 				}
 				const Real ap =  dt2 * (particles[i].aii + sum);
 				const Real new_rho = rho_0 * (ap - s) + rho_0;
-				avg_rho_err += new_rho - rho_0;
+				avg_rho_err += fabs(new_rho - rho_0);
 			}
 		}
 		for (int i = 0; i < particles.size(); i++) {

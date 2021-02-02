@@ -1,6 +1,6 @@
 #include "SPHSimulator.h"
 #include "util/util.h"
-#define DIM 9
+#define DIM 10
 SPHSimulator::SPHSimulator() {
 	m_iTestCase = 0;
 	num_particles = DIM * DIM;
@@ -18,13 +18,16 @@ void SPHSimulator::init_sim() {
 	// Init fluid particles
 	int k = 2;
 	const double two_r = particle_radius * 2.0f;
+	const auto& pr = particle_radius;
 	auto l = Vec3(-DIM * two_r, 0, 0);
 	auto t = Vec3(0, DIM * two_r, 0);
 	auto n = Vec3(-DIM * two_r, 0, 0);
 	// Fluids
 	for (int i = 0; i < DIM; i++) {
 		for (int j = 0; j < DIM; j++) {
-			dv = is_2d ? 0.25 * M_PI * two_r * two_r : 0.25 * (4.0 * M_PI / 3) * two_r * two_r * two_r;
+			// Note: The coefficient here is tweaked depending on the scene
+			// TODO: Investigate
+			dv = is_2d ? 1 * M_PI * pr * pr : 1 * (4.0 * M_PI / 3) * pr * pr * pr;
 			dm = rho_0 * dv;
 			const Vec3 pos = Vec3(i * two_r, j * two_r, 0);
 			particles.push_back(Particle(dm, dv, l + t + pos));
@@ -95,7 +98,7 @@ void SPHSimulator::update_time_step(float& time_step) {
 	}
 	// CFL Condition. See [Koschier2019] Eqn. 33
 	const Real two_r = particle_radius * 2;
-	float ts = cfl_k * 0.4 * two_r / max;
+	float ts = cfl_k * 0.4 * particle_radius / max;
 	if (ts < 1e-5) {
 		time_step = 1e-5;
 	} else if (ts <= time_step) {

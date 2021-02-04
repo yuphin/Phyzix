@@ -2,34 +2,13 @@
 #include "Simulator.h"
 #include "vectorbase.h"
 #include "Kernel.h"
+#include "Particle.h"
+#include "NeighborhoodSearcher.h"
 // Reference resources:
 //	[Koschier2019] https://interactivecomputergraphics.github.io/SPH-Tutorial/pdf/SPH_Tutorial.pdf
 //	[Akinci2012] https://cg.informatik.uni-freiburg.de/publications/2012_SIGGRAPH_rigidFluidCoupling.pdf
 //	Sample implementation: https://github.com/InteractiveComputerGraphics/SPlisHSPlasH	
 //  
-
-
-struct Particle {
-	Particle(Real dm, Real dv, const Vec3& pos, bool boundary = false) {
-		this->mass = dm;
-		this->dv = dv;
-		this->pos = pos;
-	}
-	Real mass = 0;
-	Real dv = 0;
-	Vec3 accel = Vec3();
-	Vec3 vel = Vec3();
-	Vec3 pos = Vec3();
-	Vec3 force = Vec3();
-	Real rho = 0;
-	Real pressure = 0;
-	Real old_pressure = 0;
-	Real aii;
-	Vec3 dv_div_rhoSqr_grad;
-	Vec3 dv_divRhoSqr_p_grad;
-	Real rho_star;
-};
-
 class SPHSimulator : public Simulator {
 public:
 	SPHSimulator();
@@ -71,5 +50,8 @@ private:
 	bool is_2d = true;
 	Real dv = 0;
 	Real dm = 0;
+	const int BND_ID = 1;
+	const int FLD_ID = 0;
+	std::unique_ptr<NeighborhoodSearcher> neighborhood_searcher = nullptr;
 };
 

@@ -39,8 +39,15 @@
     <ClCompile Include="DiffusionSimulator.cpp">
       <Filter>Simulator</Filter>
     </ClCompile>
-    <ClCompile Include="Sandbox.cpp" />
-    <ClCompile Include="SPHSimulator.cpp" />
+    <ClCompile Include="Sandbox.cpp">
+      <Filter>Simulator</Filter>
+    </ClCompile>
+    <ClCompile Include="SPHSimulator.cpp">
+      <Filter>Simulator</Filter>
+    </ClCompile>
+    <ClCompile Include="NeighborhoodSearcher.cpp">
+      <Filter>Simulator</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="collisionDetect.h">
@@ -97,9 +104,19 @@
     <ClInclude Include="vectorbase.h">
       <Filter>Utilities</Filter>
     </ClInclude>
-    <ClInclude Include="Sandbox.h" />
-    <ClInclude Include="SPHSimulator.h" />
     <ClInclude Include="Kernel.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="Sandbox.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="SPHSimulator.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="Particle.h">
+      <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="NeighborhoodSearcher.h">
       <Filter>Simulator</Filter>
     </ClInclude>
   </ItemGroup>

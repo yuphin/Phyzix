@@ -4,7 +4,6 @@
 #define USE_NEIGHBORHOOD 1
 // TODO : Better boundary sampling
 // Fix sorting for neighbor search
-// 3D doesnt work properly
 SPHSimulator::SPHSimulator() {
 	m_iTestCase = 0;
 	num_particles = is_2d ? DIM * DIM : DIM * DIM * DIM;
@@ -255,7 +254,7 @@ void SPHSimulator::enforce_continuity(float dt) {
 		const Real dv_div_rho2 = particles[i].dv / rho2;
 		particles[i].aii = 0;
 		particles[i].rho_star = rho;
-		particles[i].old_pressure = 0.5 * particles[i].pressure;
+		particles[i].old_pressure = particles[i].pressure;
 		// Fluid
 #if USE_NEIGHBORHOOD
 		auto& neighbors = neighborhood_searcher->

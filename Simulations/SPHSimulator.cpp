@@ -1,6 +1,6 @@
 #include "SPHSimulator.h"
 #include "util/util.h"
-#define DIM 2
+#define DIM 5
 #define USE_NEIGHBORHOOD 1
 // TODO : Better boundary sampling
 // Fix sorting for neighbor search
@@ -9,7 +9,7 @@ SPHSimulator::SPHSimulator() {
 	m_iTestCase = 0;
 	num_particles = is_2d ? DIM * DIM : DIM * DIM * DIM;
 	gravity = Vec3(0, -9, 0);
-	particle_radius = 0.35;
+	particle_radius = 0.3;
 	rho_0 = 1000;
 	// For kernel
 	support_radius = 4 * particle_radius;
@@ -25,7 +25,7 @@ void SPHSimulator::init_sim() {
 	const double two_r = particle_radius * 2.0f;
 	const auto& pr = particle_radius;
 	auto l = Vec3(-DIM / 2 * two_r, 0, 0);
-	auto t = Vec3(0, DIM * two_r, 0);
+	auto t = Vec3(0, -0.25 + DIM * two_r, 0);
 	auto n = Vec3(0, 0, -DIM * two_r) + 1.5 * offset;
 	// Fluids
 	dv = is_2d ? 0.8 * M_PI * pr * pr : 0.8 * (4.0 * M_PI / 3) * pr * pr * pr;
@@ -46,10 +46,10 @@ void SPHSimulator::init_sim() {
 	}
 	// Boundaries
 	//boundary_particles.push_back(Particle(dm, 0, Vec3(0, -0.75, 0), rho_0));
-	const Real boundary_radius = particle_radius * 0.75;
-	int h_count = 9;
-	int v_count = (1 + 0.75) / boundary_radius;
-	int d_count = is_2d ? 0 : 4 * boundary_radius / boundary_radius;
+	const Real boundary_radius = particle_radius;
+	int h_count = 6;
+	int v_count = (3 + 0.75) / boundary_radius;
+	int d_count = is_2d ? 0 : 4 / boundary_radius;
 	l = Vec3(-h_count * boundary_radius, 0, 0);
 	auto r = Vec3(h_count * boundary_radius, 0, 0);
 	t = Vec3(0, -1 + v_count * boundary_radius, 0);
@@ -217,7 +217,8 @@ void SPHSimulator::enforce_continuity(float dt) {
 		const Vec3& xi = particles[i].pos;
 		term1 = Vec3();
 
-		Real rho2 = pow(particles[i].rho / rho_0, 2);
+		const Real rho_i = particles[i].rho / rho_0;
+		Real rho2_i = rho_i * rho_i;
 		//  v* = v + dt * a_nonpressure
 		particles[i].vel += dt * particles[i].accel;
 		// Fluid
@@ -231,9 +232,7 @@ void SPHSimulator::enforce_continuity(float dt) {
 			if (i == j) continue;
 #endif
 			const Vec3& xj = particles[j].pos;
-			const Real rho = particles[j].rho / rho_0;
-			rho2 = rho * rho;
-			term1 += (particles[j].dv / rho2) * kernel.W_grad(xi - xj);
+			term1 += (particles[j].dv / rho2_i) * kernel.W_grad(xi - xj);
 		}
 		// Boundary
 #if USE_NEIGHBORHOOD
@@ -245,7 +244,7 @@ void SPHSimulator::enforce_continuity(float dt) {
 #endif
 			const Vec3& xj = boundary_particles[j].pos;
 			const Vec3 del_w = kernel.W_grad(xi - xj);
-			term1 += (boundary_particles[j].dv / rho2) * del_w;
+			term1 += (boundary_particles[j].dv / rho2_i) * del_w;
 		}
 	}
 	for (int i = 0; i < particles.size(); i++) {
@@ -256,6 +255,7 @@ void SPHSimulator::enforce_continuity(float dt) {
 		const Real dv_div_rho2 = particles[i].dv / rho2;
 		particles[i].aii = 0;
 		particles[i].rho_star = rho;
+		particles[i].old_pressure = 0.5 * particles[i].pressure;
 		// Fluid
 #if USE_NEIGHBORHOOD
 		auto& neighbors = neighborhood_searcher->
@@ -267,10 +267,11 @@ void SPHSimulator::enforce_continuity(float dt) {
 			if (i == j) continue;
 #endif
 			const Vec3& xj = particles[j].pos;
-			const Vec3& vj = particles[j].pos;
+			const Vec3& vj = particles[j].vel;
 			const Vec3 del_w = kernel.W_grad(xi - xj);
 			const Vec3 term2 = dv_div_rho2 * del_w;
 			particles[i].aii -= particles[j].dv * dot((particles[i].dv_div_rhoSqr_grad + term2), del_w);
+		
 			// While we're at it, calculate predicted density according to the continuity 
 			// equation i.e:
 			// rho* = rho - dt * rho * div(v*)
@@ -290,13 +291,15 @@ void SPHSimulator::enforce_continuity(float dt) {
 		for (int j = 0; j < boundary_particles.size(); j++) {
 #endif
 			const Vec3& xj = boundary_particles[j].pos;
-			const Vec3& vj = boundary_particles[j].pos;
+			const Vec3& vj = boundary_particles[j].vel;
 			const Vec3 del_w = kernel.W_grad(xi - xj);
 			const Vec3 term2 = dv_div_rho2 * del_w;
 			particles[i].aii -= boundary_particles[j].dv * dot((particles[i].dv_div_rhoSqr_grad + term2), del_w);
 			particles[i].rho_star += dt * dot(boundary_particles[j].dv * (vi - vj), del_w);
 		}
-		particles[i].pressure = particles[i].old_pressure;
+		if (particles[i].aii > 0) {
+			printf("Warning: Particle %d has A_ii >0\n", i);
+		}
 	}
 }
 
@@ -304,11 +307,11 @@ void SPHSimulator::solve_pressure(float time_step) {
 	// Apply relaxed Jacobi iteration with omega = 0.5
 	const Real omega = 0.5;
 	const int max_iterations = 100;
-	const int min_iterations = 5;
-	const Real max_error = 0.05; // percent
+	const int min_iterations = 2;
+	const Real max_error = 0.01; // percent
 	const Real eta = max_error * 0.01 * rho_0;
 	int iterations = 0;
-	Real avg_rho_err;
+	Real avg_rho_err = 0;
 	bool terminate = false;
 	// TODO: Adaptive iteration
 	while ((!terminate || min_iterations > iterations) && (iterations < max_iterations)) {
@@ -370,7 +373,8 @@ void SPHSimulator::solve_pressure(float time_step) {
 				sum += particles[j].dv * dot(
 					particles[i].dv_divRhoSqr_p_grad -
 					particles[j].dv_div_rhoSqr_grad * particles[j].old_pressure
-					- (particles[j].dv_divRhoSqr_p_grad - term2), del_w);
+					- (particles[j].dv_divRhoSqr_p_grad - term2 * particles[i].old_pressure),
+					del_w);
 			}
 			// Boundary
 #if USE_NEIGHBORHOOD
@@ -391,21 +395,19 @@ void SPHSimulator::solve_pressure(float time_step) {
 			// Ap = s
 			// Where s = rho_0 - rho*
 			const float dt2 = time_step * time_step;
-			const Real s = 1 - particles[i].rho_star; // (rho0 - rho*) / rho0
+			const Real s = 1.0 - particles[i].rho_star; // (rho0 - rho*) / rho0
 			const Real denom = particles[i].aii * dt2;
 			// [Koschier2019] Eq. 46 & 48
+			Real test;
 			if (fabs(denom) > 1.0e-9) {
-				auto test = (s - dt2 * sum) / denom;
-				particles[i].pressure = fmax(0, (1 - omega) * particles[i].old_pressure +
+				test = (s - dt2 * sum) / denom;
+				particles[i].pressure = fmax(0.0, (1.0 - omega) * particles[i].old_pressure +
 					omega / denom * (s - dt2 * sum));
 			} else {
 				particles[i].pressure = 0;
 			}
 			if (particles[i].pressure != 0) {
-				if (i == 1) {
-					int j = 1;
-				}
-				const Real ap = dt2 * (particles[i].aii + sum);
+				const Real ap = dt2 * (particles[i].aii * particles[i].pressure + sum);
 				const Real new_rho = rho_0 * (ap - s) + rho_0;
 				avg_rho_err += abs(new_rho - rho_0);
 			}
@@ -416,6 +418,9 @@ void SPHSimulator::solve_pressure(float time_step) {
 		avg_rho_err /= particles.size();
 		// End iteration
 		iterations++;
+		if (iterations == max_iterations) {
+			printf("Rip %lf\n", avg_rho_err);
+		}
 		terminate = terminate && (avg_rho_err <= eta);
 	}
 }
@@ -464,8 +469,8 @@ void SPHSimulator::integrate(float dt) {
 		}
 		particles[i].vel += particles[i].accel * dt;
 		particles[i].pos += particles[i].vel * dt;
-	}
-}
+		}
+		}
 
 
 const char* SPHSimulator::getTestCasesStr() {

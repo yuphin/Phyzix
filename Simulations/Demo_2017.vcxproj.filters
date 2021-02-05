@@ -41,6 +41,7 @@
     </ClCompile>
     <ClCompile Include="Sandbox.cpp" />
     <ClCompile Include="SPHSimulator.cpp" />
+    <ClCompile Include="StableFluid.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="collisionDetect.h">
@@ -102,6 +103,7 @@
     <ClInclude Include="Kernel.h">
       <Filter>Simulator</Filter>
     </ClInclude>
+    <ClInclude Include="StableFluid.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utilities">

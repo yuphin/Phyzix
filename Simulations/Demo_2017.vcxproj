@@ -346,6 +346,7 @@
     <ClCompile Include="Contact.cpp" />
     <ClCompile Include="DiffusionSimulator.cpp" />
     <ClCompile Include="MassSpringSystemSimulator.cpp" />
+    <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="NeighborhoodSearcher.cpp" />
     <ClCompile Include="RigidBody.cpp" />
     <ClCompile Include="RigidBodySystemSimulator.cpp" />
@@ -363,6 +364,7 @@
     <ClInclude Include="general.h" />
     <ClInclude Include="Kernel.h" />
     <ClInclude Include="MassSpringSystemSimulator.h" />
+    <ClInclude Include="Mesh.h" />
     <ClInclude Include="NeighborhoodSearcher.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="pcgsolver.h" />

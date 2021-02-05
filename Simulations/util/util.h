@@ -54,5 +54,13 @@ constexpr int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
+inline XMFLOAT3 operator*(const XMFLOAT3& v, const Real s) {
+    return XMFLOAT3(v.x * s, v.y * s, v.z * s);
+}
+
+inline XMFLOAT3 operator+(const XMFLOAT3& v, const XMFLOAT3& v2) {
+    return XMFLOAT3(v.x + v2.x, v.y + v2.y,  v.z + v2.z);
+}
+
 
 #endif

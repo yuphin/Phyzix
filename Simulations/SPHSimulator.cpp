@@ -1,55 +1,105 @@
 #include "SPHSimulator.h"
 #include "util/util.h"
-#define DIM 10
-
+#define DIM 2
+#define USE_NEIGHBORHOOD 1
+// TODO : Better boundary sampling
+// Fix sorting for neighbor search
+// 3D doesnt work properly
 SPHSimulator::SPHSimulator() {
 	m_iTestCase = 0;
-	num_particles = DIM * DIM;
-	gravity = Vec3(0, -9.81, 0);
-	particle_radius = 0.3;
+	num_particles = is_2d ? DIM * DIM : DIM * DIM * DIM;
+	gravity = Vec3(0, -9, 0);
+	particle_radius = 0.35;
 	rho_0 = 1000;
 	// For kernel
 	support_radius = 4 * particle_radius;
 	kernel.init(support_radius);
 	particles.reserve(num_particles);
+	srand(time(NULL));
 }
 
 void SPHSimulator::init_sim() {
 	// Init fluid particles
 	int k = 2;
+	const Vec3 offset = Vec3{ 0, 0, -0.25 };
 	const double two_r = particle_radius * 2.0f;
 	const auto& pr = particle_radius;
 	auto l = Vec3(-DIM / 2 * two_r, 0, 0);
 	auto t = Vec3(0, DIM * two_r, 0);
-	auto n = Vec3(-DIM * two_r, 0, 0);
+	auto n = Vec3(0, 0, -DIM * two_r) + 1.5 * offset;
 	// Fluids
+	dv = is_2d ? 0.8 * M_PI * pr * pr : 0.8 * (4.0 * M_PI / 3) * pr * pr * pr;
+	dm = rho_0 * dv;
 	for (int i = 0; i < DIM; i++) {
 		for (int j = 0; j < DIM; j++) {
-			dv = is_2d ? 1.07 * M_PI * pr * pr : 1 * (4.0 * M_PI / 3) * pr * pr * pr;
-			dm = rho_0 * dv;
-			const Vec3 pos = Vec3(i * two_r, j * two_r, 0);
-			particles.push_back(Particle(dm, dv, l + t + pos));
+			if (is_2d) {
+				const Vec3 pos = Vec3(i * two_r, j * two_r, 0);
+				particles.push_back(Particle(dm, dv, l + t + (is_2d ? Vec3() : n) + pos));
+			} else {
+				for (int k = 0; k < DIM; k++) {
+					const Vec3 pos = Vec3(i * two_r, -1 + j * two_r, k * two_r);
+					particles.push_back(Particle(dm, dv, l + t + (is_2d ? Vec3() : n) + pos));
+				}
+			}
+
 		}
 	}
 	// Boundaries
-	boundary_particles.push_back(Particle(dm, 0, Vec3(0, -0.75, 0), rho_0));
-	auto h_count = 20;
-	auto v_count = (5 + 0.75) / particle_radius;
-	l = Vec3(-h_count * particle_radius, 0, 0);
-	auto r = Vec3(h_count * particle_radius, 0, 0);
-	t = Vec3(0, -1 + v_count * particle_radius, 0);
-	n = Vec3(-DIM * two_r, 0, 0);
-	for (int k = 0; k < 2; k++) {
+	//boundary_particles.push_back(Particle(dm, 0, Vec3(0, -0.75, 0), rho_0));
+	const Real boundary_radius = particle_radius * 0.75;
+	int h_count = 9;
+	int v_count = (1 + 0.75) / boundary_radius;
+	int d_count = is_2d ? 0 : 4 * boundary_radius / boundary_radius;
+	l = Vec3(-h_count * boundary_radius, 0, 0);
+	auto r = Vec3(h_count * boundary_radius, 0, 0);
+	t = Vec3(0, -1 + v_count * boundary_radius, 0);
+	n = is_2d ? Vec3() : Vec3(0, 0, -DIM * two_r);
+	for (int k = 0; k < 1; k++) {
 		for (int i = 0; i < 2 * h_count; i++) {
-			const Vec3 pos = Vec3(i * particle_radius, -0.75 - k * particle_radius, 0);
-			boundary_particles.push_back(Particle{ dm, 0, pos + l, rho_0 });
+			for (int j = 0; j <= 2 * d_count; j++) {
+				Vec3 pos = Vec3(i * boundary_radius, -0.75 - k * boundary_radius, j * boundary_radius);
+				boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 });
+				pos.z = -j * boundary_radius;
+				boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 });
+			}
 		}
 		for (int i = 0; i < v_count; i++) {
-			Vec3 pos = Vec3(-k * particle_radius, -i * particle_radius, 0);
+			for (int j = 0; j <= 2 * d_count; j++) {
+				Vec3 pos = Vec3(-k * boundary_radius, -i * boundary_radius, j * boundary_radius);
+				boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0 });
+				pos.z = -j * boundary_radius;
+				boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0 });
+				pos.x = k * boundary_radius;
+				pos.z = j * boundary_radius;
+				boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0 });
+				pos.z = -j * boundary_radius;
+				boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0 });
+			}
+		}
+		if (!is_2d) {
+			auto nf = {
+					n + 2 * Vec3(0, 0, d_count * boundary_radius) ,
+					n - 2 * Vec3(0, 0, d_count * boundary_radius)
+			};
+			for (const auto& p : nf) {
+				for (int i = 0; i < 2 * h_count; i++) {
+					for (int j = 0; j < v_count; j++) {
+						Vec3 pos = Vec3(i * boundary_radius, -j * boundary_radius, 0);
+						boundary_particles.push_back(Particle{ dm, 0, pos + l + t + p , rho_0 });
+						pos.x = k * boundary_radius;
+						boundary_particles.push_back(Particle{ dm, 0, pos + r + t + p , rho_0 });
+					}
+				}
+
+			}
+		}
+
+		/*for (int i = 0; i < d_count; i++) {
+			Vec3 pos = Vec3(-k * particle_radius, k * particle_radius, i * particle_radius);
 			boundary_particles.push_back(Particle{ dm, 0, pos + l + t , rho_0 });
 			pos = Vec3(k * particle_radius, -i * particle_radius, 0);
 			boundary_particles.push_back(Particle{ dm, 0, pos + r + t , rho_0 });
-		}
+		}*/
 	}
 	// The order is important!
 	neighborhood_searcher.reset();
@@ -59,6 +109,7 @@ void SPHSimulator::init_sim() {
 	neighborhood_searcher->register_set(boundary_particles);
 	neighborhood_searcher->find_neighborhoods();
 	compute_boundary_volumes();
+	DUC->box->sample_mesh();
 
 }
 
@@ -67,9 +118,14 @@ void SPHSimulator::compute_boundary_volumes() {
 	for (int i = 0; i < boundary_particles.size(); i++) {
 		Real delta = kernel.W(0);
 		const Vec3& xi = boundary_particles[i].pos;
+#if USE_NEIGHBORHOOD
 		const auto& boundary_neighbors = neighborhood_searcher->
 			particle_sets[BND_ID].neighbor_idxs[BND_ID][i];
 		for (const auto j : boundary_neighbors) {
+#else
+		for (int j = 0; j < boundary_particles.size(); j++) {
+			if (i == j) continue;
+#endif
 			const Vec3& xj = boundary_particles[j].pos;
 			delta += kernel.W(norm(xi - xj));
 		}
@@ -119,16 +175,26 @@ void SPHSimulator::compute_density() {
 		Real density = particles[i].dv * kernel.W(0);
 		const Vec3& xi = particles[i].pos;
 		// Fluid
-		const auto& neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-			neighbor_idxs[FLD_ID][i];
+#if USE_NEIGHBORHOOD
+		auto& neighbors = neighborhood_searcher->
+			particle_sets[FLD_ID].neighbor_idxs[FLD_ID][i];
+		std::sort(neighbors.begin(), neighbors.end());
 		for (const auto j : neighbors) {
+#else
+		for (int j = 0; j < particles.size(); j++) {
+			if (i == j) continue;
+#endif
 			const Vec3& xj = particles[j].pos;
 			density += particles[j].dv * kernel.W(norm(xi - xj));
 		}
 		// Boundary
-		const auto& boundary_neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-			neighbor_idxs[BND_ID][i];
+#if USE_NEIGHBORHOOD
+		const auto& boundary_neighbors = neighborhood_searcher->
+			particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
 		for (const auto j : boundary_neighbors) {
+#else
+		for (int j = 0; j < boundary_particles.size(); j++) {
+#endif
 			const Vec3& xj = boundary_particles[j].pos;
 			auto krnel = kernel.W(norm(xi - xj));
 			density += boundary_particles[j].dv * krnel;
@@ -155,18 +221,28 @@ void SPHSimulator::enforce_continuity(float dt) {
 		//  v* = v + dt * a_nonpressure
 		particles[i].vel += dt * particles[i].accel;
 		// Fluid
-		const auto& neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-			neighbor_idxs[FLD_ID][i];
+#if USE_NEIGHBORHOOD
+		auto& neighbors = neighborhood_searcher->
+			particle_sets[FLD_ID].neighbor_idxs[FLD_ID][i];
+		std::sort(neighbors.begin(), neighbors.end());
 		for (const auto j : neighbors) {
+#else
+		for (int j = 0; j < particles.size(); j++) {
+			if (i == j) continue;
+#endif
 			const Vec3& xj = particles[j].pos;
 			const Real rho = particles[j].rho / rho_0;
 			rho2 = rho * rho;
 			term1 += (particles[j].dv / rho2) * kernel.W_grad(xi - xj);
 		}
 		// Boundary
-		const auto& boundary_neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-			neighbor_idxs[BND_ID][i];
+#if USE_NEIGHBORHOOD
+		const auto& boundary_neighbors = neighborhood_searcher->
+			particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
 		for (const auto j : boundary_neighbors) {
+#else
+		for (int j = 0; j < boundary_particles.size(); j++) {
+#endif
 			const Vec3& xj = boundary_particles[j].pos;
 			const Vec3 del_w = kernel.W_grad(xi - xj);
 			term1 += (boundary_particles[j].dv / rho2) * del_w;
@@ -181,9 +257,15 @@ void SPHSimulator::enforce_continuity(float dt) {
 		particles[i].aii = 0;
 		particles[i].rho_star = rho;
 		// Fluid
-		const auto& neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-			neighbor_idxs[FLD_ID][i];
+#if USE_NEIGHBORHOOD
+		auto& neighbors = neighborhood_searcher->
+			particle_sets[FLD_ID].neighbor_idxs[FLD_ID][i];
+		std::sort(neighbors.begin(), neighbors.end());
 		for (const auto j : neighbors) {
+#else
+		for (int j = 0; j < particles.size(); j++) {
+			if (i == j) continue;
+#endif
 			const Vec3& xj = particles[j].pos;
 			const Vec3& vj = particles[j].pos;
 			const Vec3 del_w = kernel.W_grad(xi - xj);
@@ -200,9 +282,13 @@ void SPHSimulator::enforce_continuity(float dt) {
 			particles[i].rho_star += dt * dot(particles[j].dv * (vi - vj), kernel.W_grad(xi - xj));
 		}
 		// Boundary
-		const auto& boundary_neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-			neighbor_idxs[BND_ID][i];
+#if USE_NEIGHBORHOOD
+		const auto& boundary_neighbors = neighborhood_searcher->
+			particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
 		for (const auto j : boundary_neighbors) {
+#else
+		for (int j = 0; j < boundary_particles.size(); j++) {
+#endif
 			const Vec3& xj = boundary_particles[j].pos;
 			const Vec3& vj = boundary_particles[j].pos;
 			const Vec3 del_w = kernel.W_grad(xi - xj);
@@ -218,7 +304,7 @@ void SPHSimulator::solve_pressure(float time_step) {
 	// Apply relaxed Jacobi iteration with omega = 0.5
 	const Real omega = 0.5;
 	const int max_iterations = 100;
-	const int min_iterations = 1;
+	const int min_iterations = 5;
 	const Real max_error = 0.05; // percent
 	const Real eta = max_error * 0.01 * rho_0;
 	int iterations = 0;
@@ -237,10 +323,15 @@ void SPHSimulator::solve_pressure(float time_step) {
 			const Vec3& xi = particles[i].pos;
 			particles[i].dv_divRhoSqr_p_grad = 0;
 			// Fluid
-			const auto& neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-				neighbor_idxs[FLD_ID][i];
+#if USE_NEIGHBORHOOD
+			auto& neighbors = neighborhood_searcher->
+				particle_sets[FLD_ID].neighbor_idxs[FLD_ID][i];
+			std::sort(neighbors.begin(), neighbors.end());
 			for (const auto j : neighbors) {
-			//for (int j = 0; j < particles.size(); j++) {
+#else
+			for (int j = 0; j < particles.size(); j++) {
+				if (i == j) continue;
+#endif
 				const Real rho = particles[j].rho / rho_0;
 				const Real rho2 = rho * rho;
 				const Vec3& xj = particles[j].pos;
@@ -264,9 +355,15 @@ void SPHSimulator::solve_pressure(float time_step) {
 			particles[i].pressure = 0;
 			Real sum = 0;
 			// Fluid
-			const auto& neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-				neighbor_idxs[FLD_ID][i];
+#if USE_NEIGHBORHOOD
+			auto& neighbors = neighborhood_searcher->
+				particle_sets[FLD_ID].neighbor_idxs[FLD_ID][i];
+			std::sort(neighbors.begin(), neighbors.end());
 			for (const auto j : neighbors) {
+#else
+			for (int j = 0; j < particles.size(); j++) {
+				if (i == j) continue;
+#endif
 				const Vec3& xj = particles[j].pos;
 				const Vec3 del_w = kernel.W_grad(xi - xj);
 				const Vec3 term2 = dv_div_rho2 * del_w;
@@ -276,9 +373,13 @@ void SPHSimulator::solve_pressure(float time_step) {
 					- (particles[j].dv_divRhoSqr_p_grad - term2), del_w);
 			}
 			// Boundary
-			const auto& boundary_neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-				neighbor_idxs[BND_ID][i];
+#if USE_NEIGHBORHOOD
+			const auto& boundary_neighbors = neighborhood_searcher->
+				particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
 			for (const auto j : boundary_neighbors) {
+#else
+			for (int j = 0; j < boundary_particles.size(); j++) {
+#endif
 			//for (int j = 0; j < boundary_particles.size(); j++) {
 				const Vec3& xj = boundary_particles[j].pos;
 				// Only include fluid pressures
@@ -306,7 +407,7 @@ void SPHSimulator::solve_pressure(float time_step) {
 				}
 				const Real ap = dt2 * (particles[i].aii + sum);
 				const Real new_rho = rho_0 * (ap - s) + rho_0;
-				avg_rho_err += (new_rho - rho_0);
+				avg_rho_err += abs(new_rho - rho_0);
 			}
 		}
 		for (int i = 0; i < particles.size(); i++) {
@@ -331,9 +432,15 @@ void SPHSimulator::integrate(float dt) {
 		const Real p_div_rho2 = particles[i].pressure / rho2;
 		particles[i].accel = 0;
 		// Acceleration from fluid pressure
-		const auto& neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-			neighbor_idxs[FLD_ID][i];
+#if USE_NEIGHBORHOOD
+		auto& neighbors = neighborhood_searcher->
+			particle_sets[FLD_ID].neighbor_idxs[FLD_ID][i];
+		std::sort(neighbors.begin(), neighbors.end());
 		for (const auto j : neighbors) {
+#else
+		for (int j = 0; j < particles.size(); j++) {
+			if (i == j) continue;
+#endif
 			const Real rho_j = particles[j].rho / rho_0;
 			const Real rho2_j = rho_j * rho_j;
 			const Real p_div_rho2_j = particles[j].pressure / rho2_j;
@@ -342,9 +449,13 @@ void SPHSimulator::integrate(float dt) {
 				(p_div_rho2 + p_div_rho2_j) * del_w;
 		}
 		// Mirror pressure, see [Akinci2012] and [Koschier2019]
-		const auto& boundary_neighbors = neighborhood_searcher->particle_sets[FLD_ID].
-			neighbor_idxs[BND_ID][i];
+#if USE_NEIGHBORHOOD
+		const auto& boundary_neighbors = neighborhood_searcher->
+			particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
 		for (const auto j : boundary_neighbors) {
+#else
+		for (int j = 0; j < boundary_particles.size(); j++) {
+#endif
 			const Vec3& xj = boundary_particles[j].pos;
 			auto del_w = kernel.W_grad(xi - xj);
 			Vec3 a = boundary_particles[j].dv * p_div_rho2 * del_w;
@@ -361,9 +472,9 @@ const char* SPHSimulator::getTestCasesStr() {
 	return "Box";
 }
 
-void SPHSimulator::initUI(DrawingUtilitiesClass* DUC) {
+void SPHSimulator::initUI(DrawingUtilitiesClass * DUC) {
 	this->DUC = DUC;
-	this->context = DUC->g_pd3dImmediateContext;
+	this->context = DUC->device_context;
 	particles.clear();
 	boundary_particles.clear();
 	init_sim();
@@ -376,7 +487,7 @@ void SPHSimulator::reset() {
 
 }
 
-void SPHSimulator::drawFrame(ID3D11DeviceContext* pd3dImmediateContext) {
+void SPHSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext) {
 	switch (m_iTestCase) {
 	case 0:
 	{
@@ -390,6 +501,11 @@ void SPHSimulator::drawFrame(ID3D11DeviceContext* pd3dImmediateContext) {
 			const float r = particle_radius;
 			DUC->drawSphere(boundary_particles[i].pos, { r, r, r });
 		}
+		/*DUC->drawRigidBody(Vec3(), Vec3(), Vec3(1, 1, 1));
+		DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
+		for (int i = 0; i < DUC->box->samples.size(); i++) {
+			DUC->drawSphere(DUC->box->samples[i], { 0.3, 0.3, 0.3 });
+		}*/
 	}
 	break;
 	default:

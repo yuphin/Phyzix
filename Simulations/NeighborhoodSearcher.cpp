@@ -47,7 +47,6 @@ void NeighborhoodSearcher::init() {
 void NeighborhoodSearcher::update() {
 	std::vector<std::tuple<int, int, const HashVec& ,const HashVec&>> updated;
 	updated.reserve(num_particles * 0.05);
-	int offset = 0;
 	for (int i = 0; i < particle_sets.size(); i++) {
 		if (i == particle_sets.size() - 1) {
 			// Assume the last set is a fixed boundary
@@ -62,9 +61,8 @@ void NeighborhoodSearcher::update() {
 				updated.push_back({ i, j, keys[j], old_keys[j]});
 			}
 		}
-		offset += particle_sets[i].particles->size();
 	}
-	for (const auto& [set_idx, idx, key, old_key] : updated) {
+	for (const auto& [set_idx, idx, key, old_key] : updated) { 
 		auto it = map.find(key);
 		if (it == map.end()) {
 			std::vector<std::pair<int, int>> entries;

@@ -18,6 +18,7 @@
 #include "util/vectorbase.h"
 #include "util/matrixbase.h"
 #include "util/quaternion.h"
+#include "Mesh.h"
 using namespace DirectX;
 using namespace GamePhysics;
 
@@ -25,7 +26,7 @@ class DrawingUtilitiesClass{
 
 public:
 ID3D11Device* g_ppd3Device;
-ID3D11DeviceContext* g_pd3dImmediateContext;
+ID3D11DeviceContext* device_context;
 // Effect corresponding to "effect.fx"
 ID3DX11Effect* g_pEffect;
 // Tweak bar
@@ -54,23 +55,68 @@ ID3D11InputLayout*                         g_pInputLayoutPositionNormalColor;
 PrimitiveBatch<VertexPositionNormalColor>* g_pPrimitiveBatchPositionNormalColor;
 
 // DirectXTK simple geometric primitives
-std::unique_ptr<GeometricPrimitive> g_pSphere;
-std::unique_ptr<GeometricPrimitive> g_pTeapot;
+std::unique_ptr<GeometricPrimitive> sphere;
+std::unique_ptr<GeometricPrimitive> teapot;
+std::unique_ptr<Mesh> box;
 
 // Constructor
 DrawingUtilitiesClass(){
 	g_pTweakBar = nullptr;
 }
 
+void create_box(Mesh* box) {
+    box->vertices = {
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(0,0,-1), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, 0.5f, -0.5f), XMFLOAT3(0,0,-1), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, 0.5f, -0.5f), XMFLOAT3(0,0,-1), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, -0.5f, -0.5f), XMFLOAT3(0,0,-1), XMFLOAT2()),
 
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, -0.5f, 0.5f), XMFLOAT3(0,0,1), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, 0.5f, 0.5f), XMFLOAT3(0,0,1), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, 0.5f, 0.5f), XMFLOAT3(0,0,1), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, -0.5f, 0.5f), XMFLOAT3(0,0,1), XMFLOAT2()),
+
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, -0.5f, 0.5f), XMFLOAT3(-1,0,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, 0.5f, 0.5f), XMFLOAT3(-1,0,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, 0.5f, -0.5f), XMFLOAT3(-1,0,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(-1,0,0), XMFLOAT2()),
+
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, -0.5f, -0.5f), XMFLOAT3(1,0,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, 0.5f, -0.5f), XMFLOAT3(1,0,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, 0.5f, 0.5f), XMFLOAT3(1,0,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, -0.5f, 0.5f), XMFLOAT3(1,0,0), XMFLOAT2()),
+
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, 0.5f, -0.5f), XMFLOAT3(0,1,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, 0.5f, 0.5f), XMFLOAT3(0,1,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, 0.5f, 0.5f), XMFLOAT3(0,1,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, 0.5f, -0.5f), XMFLOAT3(0,1,0), XMFLOAT2()),
+
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, -0.5f, -0.5f), XMFLOAT3(0,-1,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(0.5f, -0.5f, 0.5f), XMFLOAT3(0,-1,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, -0.5f, 0.5f), XMFLOAT3(0,-1,0), XMFLOAT2()),
+		VertexPositionNormalTexture(XMFLOAT3(-0.5f, -0.5f, -0.5f), XMFLOAT3(0,-1,0), XMFLOAT2())
+    };
+    for (int i = 0; i < 6; i++) {
+        int offset = 4 * i;
+        box->indices.push_back(offset);
+        box->indices.push_back(offset + 1);
+        box->indices.push_back(offset + 2);
+        box->indices.push_back(offset);
+        box->indices.push_back(offset + 2);
+        box->indices.push_back(offset + 3);
+    }
+    box->prim = GeometricPrimitive::CreateCustom(device_context, box->vertices, box->indices);
+    box->calculate_triangles();
+}
 void init(ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext)
 {
-	g_pd3dImmediateContext = pd3dImmediateContext;
+	device_context = pd3dImmediateContext;
 	g_ppd3Device = pd3dDevice;
 	// Create DirectXTK geometric primitives for later usage
-    g_pSphere = GeometricPrimitive::CreateGeoSphere(g_pd3dImmediateContext, 2.0f, 2, false);
-    g_pTeapot = GeometricPrimitive::CreateTeapot(g_pd3dImmediateContext, 1.5f, 8, false);
-
+    sphere = GeometricPrimitive::CreateGeoSphere(device_context, 2.0f, 2, false);
+    teapot = GeometricPrimitive::CreateTeapot(device_context, 1.5f, 8, false);
+    box = std::make_unique<Mesh>();
+    create_box(box.get());
     // Create effect, input layout and primitive batch for position/color vertices (DirectXTK)
     {
         // Effect
@@ -148,9 +194,9 @@ void destroy(){
     SAFE_RELEASE(g_pInputLayoutPositionNormalColor);
     SAFE_DELETE (g_pEffectPositionNormalColor);
 	
-    g_pSphere.reset();
-    g_pTeapot.reset();
-
+    sphere.reset();
+    teapot.reset();
+    box.reset();
 	SAFE_RELEASE(g_pEffect);
 	
     TwDeleteBar(g_pTweakBar);
@@ -299,7 +345,7 @@ void drawSphere(const XMVECTOR pos, const XMVECTOR scale)
     g_pEffectPositionNormal->SetWorld(s * t * g_camera.GetWorldMatrix());
     // Draw
     // NOTE: The following generates one draw call per object, so performance will be bad for n>>1000 or so
-    g_pSphere->Draw( g_pEffectPositionNormal,  g_pInputLayoutPositionNormal);
+    sphere->Draw( g_pEffectPositionNormal,  g_pInputLayoutPositionNormal);
 }
 
 void drawTeapot(Vec3 pos,Vec3 rot,Vec3 scale)
@@ -315,15 +361,15 @@ void drawTeapot(const XMVECTOR pos,const XMVECTOR rot,const XMVECTOR scale)
     g_pEffectPositionNormal->SetWorld(r * s * t * g_camera.GetWorldMatrix());
     // Draw
     // NOTE: The following generates one draw call per object, so performance will be bad for n>>1000 or so
-	g_pTeapot->Draw( g_pEffectPositionNormal,  g_pInputLayoutPositionNormal);
+	teapot->Draw( g_pEffectPositionNormal,  g_pInputLayoutPositionNormal);
 }
 
 void drawRigidBody(const XMMATRIX& m_objToWorld)
 {
 	g_pEffectPositionNormal->SetWorld(m_objToWorld);
 
-	g_pEffectPositionNormal->Apply(g_pd3dImmediateContext);
-	g_pd3dImmediateContext->IASetInputLayout(g_pInputLayoutPositionNormal);
+	g_pEffectPositionNormal->Apply(device_context);
+	device_context->IASetInputLayout(g_pInputLayoutPositionNormal);
 
 	// front
 	g_pPrimitiveBatchPositionNormal->Begin();
@@ -370,6 +416,7 @@ void drawRigidBody(const XMMATRIX& m_objToWorld)
 	);
 	g_pPrimitiveBatchPositionNormal->End();
 
+
 }
 
 void drawRigidBody(Mat4 m_objToWorld)
@@ -388,7 +435,10 @@ void drawRigidBody(Vec3 pos, Vec3 rot, Vec3 scale) {
     XMMATRIX r = XMMatrixRotationRollPitchYaw(XMVectorGetX(rot.toDirectXVector()), 
                                               XMVectorGetX(rot.toDirectXVector()), 
                                               XMVectorGetX(rot.toDirectXVector()));
-    drawRigidBody(r * s * t * g_camera.GetWorldMatrix());
+
+    g_pEffectPositionNormal->SetWorld(t * r * s * g_camera.GetWorldMatrix());
+    box->prim->Draw(g_pEffectPositionNormal, g_pInputLayoutPositionNormal);
+    //drawRigidBody(r * s * t * g_camera.GetWorldMatrix());
 }
 
 void DrawTriangleUsingShaders()
@@ -399,20 +449,20 @@ void DrawTriangleUsingShaders()
 	XMFLOAT4X4 mViewProj;
 	XMStoreFloat4x4(&mViewProj, world * view * proj);
 	g_pEffect->GetVariableByName("g_worldViewProj")->AsMatrix()->SetMatrix((float*)mViewProj.m);
-	g_pEffect->GetTechniqueByIndex(0)->GetPassByIndex(0)->Apply(0, g_pd3dImmediateContext);
+	g_pEffect->GetTechniqueByIndex(0)->GetPassByIndex(0)->Apply(0, device_context);
     
-	g_pd3dImmediateContext->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
-	g_pd3dImmediateContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_R16_UINT, 0);
-	g_pd3dImmediateContext->IASetInputLayout(nullptr);
-	g_pd3dImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	g_pd3dImmediateContext->Draw(3, 0);
+	device_context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+	device_context->IASetIndexBuffer(nullptr, DXGI_FORMAT_R16_UINT, 0);
+	device_context->IASetInputLayout(nullptr);
+	device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	device_context->Draw(3, 0);
 }
 
 void beginLine()
 {
 	g_pEffectPositionColor->SetWorld(g_camera.GetWorldMatrix());
-    g_pEffectPositionColor->Apply(g_pd3dImmediateContext);
-	g_pd3dImmediateContext->IASetInputLayout(g_pInputLayoutPositionColor);
+    g_pEffectPositionColor->Apply(device_context);
+	device_context->IASetInputLayout(g_pInputLayoutPositionColor);
 	// Draw
     g_pPrimitiveBatchPositionColor->Begin();
 }

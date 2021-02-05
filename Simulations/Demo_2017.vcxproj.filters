@@ -48,6 +48,9 @@
     <ClCompile Include="NeighborhoodSearcher.cpp">
       <Filter>Simulator</Filter>
     </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Utilities</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="collisionDetect.h">
@@ -118,6 +121,9 @@
     </ClInclude>
     <ClInclude Include="NeighborhoodSearcher.h">
       <Filter>Simulator</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Utilities</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

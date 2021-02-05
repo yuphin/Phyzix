@@ -47,7 +47,7 @@ private:
 	std::vector<Particle> boundary_particles;
 	Real rho_0;
 	Real cfl_k = 1;
-	bool is_2d = true;
+	bool is_2d = false;
 	Real dv = 0;
 	Real dm = 0;
 	const int BND_ID = 1;

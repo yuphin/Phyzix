@@ -319,7 +319,7 @@ void TW_CALL DiffusionSimulator::get_alpha(void* value, void* client_data) {
 
 void DiffusionSimulator::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
-	this->context = DUC->g_pd3dImmediateContext;
+	this->context = DUC->device_context;
 	data = std::make_unique<ClientData>();
 	data->dim_size = &dim_size;
 	data->dim_x = &dim_x;

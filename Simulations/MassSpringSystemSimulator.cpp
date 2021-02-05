@@ -298,7 +298,7 @@ void MassSpringSystemSimulator::fill_resources() {
                 create_uav(device, buffer_in.Get(), &uav_in);
 
             } else {
-                auto context = DUC->g_pd3dImmediateContext;
+                auto context = DUC->device_context;
                 context->UpdateSubresource(buffer_in.Get(), 0, nullptr, vertices.data(), 0, 0);
             }
 
@@ -575,7 +575,7 @@ void MassSpringSystemSimulator::simulateTimestep(float time_step) {
     float delta = time_step / float(iters);
 
     if(m_iTestCase == 3) {
-        auto context = DUC->g_pd3dImmediateContext;
+        auto context = DUC->device_context;
         simulation_cb.delta = delta;
         simulation_cb.sphere_radius = sphere_rad;
         simulation_cb.cube_radius = cube_rad;

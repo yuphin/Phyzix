@@ -12,7 +12,7 @@ struct Vec2
 class StableFluid : public Simulator {
 public:
 	StableFluid();
-	void pass_time_step_variable(float time_step);
+	void pass_time_step_variable(float& time_step);
 	const char* getTestCasesStr();
 	void initUI(DrawingUtilitiesClass* DUC) override;
 	void reset() override;

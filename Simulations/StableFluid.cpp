@@ -1,16 +1,16 @@
 #include "StableFluid.h"
 
-#define IX(i,j) ((j)+(grid_size+2)*(i))
+#define IX(i,j) ((i) + (grid_size + 2) * (j))
 #define SWAP(x0,x) {auto* tmp=x0; x0=x; x=tmp;}
 
 StableFluid::StableFluid()
 {
-	grid_size = 10;
+	grid_size = 32;
 	total_size = (grid_size + 2) * (grid_size + 2);
 
 	viscosity = 0.0f;
 	diffusionRate = 0.0f;
-	jacobiNum = 30;
+	jacobiNum = 20;
 
 	vel0_x = new float[total_size];
 	vel1_x = new float[total_size];
@@ -20,9 +20,13 @@ StableFluid::StableFluid()
 	
 	dens0 = new float[total_size];
 	dens1 = new float[total_size];
+
+	for (int i = 0; i < total_size; i++) {
+		vel0_x[i] = vel1_x[i] = vel0_y[i] = vel1_y[i] = dens0[i] = dens1[i] = 0.0f;
+	}
 }
 
-void StableFluid::pass_time_step_variable(float time_step)
+void StableFluid::pass_time_step_variable(float& time_step)
 {
 	timestep = &time_step;
 }
@@ -42,10 +46,17 @@ void StableFluid::reset()
 	m_mouse.x = m_mouse.y = 0;
 	m_trackmouse.x = m_trackmouse.y = 0;
 	m_oldtrackmouse.x = m_oldtrackmouse.y = 0;
+	*timestep = 0.4f;
 }
 
 void StableFluid::drawFrame(ID3D11DeviceContext* pd3dImmediateContext)
 {
+	for (int i = 0; i <= grid_size + 1; i++) {
+		for (int j = 0; j <= grid_size + 1; j++) {
+			DUC->setUpLighting(Vec3(dens1[IX(i,j)], dens1[IX(i, j)], dens1[IX(i, j)]), Vec3(), 2000.0, Vec3(0.1, 0.1, 0.1));
+			DUC->drawSphere(Vec3(i * 0.1f, j * 0.1f, 0), { 0.1,0.1,0.1 });
+		}
+	}
 }
 
 void StableFluid::notifyCaseChanged(int testCase)
@@ -57,6 +68,7 @@ void StableFluid::notifyCaseChanged(int testCase)
 	switch (m_iTestCase)
 	{
 	case 0:
+		*timestep = 0.1f;
 		cout << "Solver!\n";
 		break;
 	default:
@@ -134,8 +146,7 @@ void StableFluid::advect(int b, float* d, float* d0, float* u, float* v) {
 			float t1 = y - j0;
 			float t0 = 1 - t1;
 
-			d[IX(i, j)] = s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) +
-				s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
+			d[IX(i, j)] = s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) + s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
 		}
 	}
 	setBoundaries(b, d);
@@ -190,6 +201,19 @@ void StableFluid::densityStep() {
 
 void StableFluid::simulateTimestep(float timeStep)
 {
+	for (int i = 0; i < total_size; i++) {
+		vel0_x[i] = vel0_y[i] = dens0[i] = 0.0f;
+	}
+
+	dens0[IX(16, 2)] = 10.0f;
+
+	auto radians = 90 * 0.0174532925f;
+	auto x_velocity = 40 * cos(radians);
+	auto y_velocity = 40 * sin(radians);
+	
+	vel0_x[IX(16, 2)] = x_velocity;
+	vel0_y[IX(16, 2)] = y_velocity;
+
 	velocityStep();
 	densityStep();
 }

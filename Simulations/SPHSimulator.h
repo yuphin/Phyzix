@@ -41,6 +41,7 @@ private:
 	float* time_step;
 	Vec3 gravity;
 	Real particle_radius;
+	Real boundary_radius;
 	Real support_radius;
 	CubicSplineKernel2 kernel;
 	std::vector<Particle> particles;
@@ -52,6 +53,10 @@ private:
 	Real dm = 0;
 	const int BND_ID = 1;
 	const int FLD_ID = 0;
+	Vec3 box_t = Vec3(3, 0, -1);
+	Vec3 box_r = Vec3();
+	Vec3 box_s = Vec3(1, 1, 1);
+	std::vector<Vec3> samples;
 	std::unique_ptr<NeighborhoodSearcher> neighborhood_searcher = nullptr;
 };
 

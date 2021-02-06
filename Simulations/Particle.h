@@ -4,16 +4,19 @@
 #include "util/quaternion.h"
 #include "util/util.h"
 struct Particle {
-	Particle(Real dm, Real dv, const Vec3& pos, Real rho_0 = -1) {
+	Particle(Real dm, Real dv, const Vec3& pos, 
+		Real rho_0 = -1, bool visible = true) {
 		this->mass = dm;
 		this->dv = dv;
 		this->pos = pos;
+		this->visible = visible;
 		if (rho_0 != -1) {
 			// Boundary
 			set_idx = 1;
 			this->rho = rho_0;
 		}
 	}
+	bool visible;
 	int set_idx = 0;
 	Real mass = 0;
 	Real dv = 0;

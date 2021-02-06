@@ -26,6 +26,8 @@ void SPHSimulator::init_sim() {
 	auto l = Vec3(-DIM / 2 * two_r, 0, 0);
 	auto t = Vec3(0, -0.25 + DIM * two_r, 0);
 	auto n = Vec3(0, 0, -DIM * two_r) + 1.5 * offset;
+	particles.clear();
+	boundary_particles.clear();
 	// Fluids
 	dv = is_2d ? 0.8 * M_PI * pr * pr : 0.8 * (4.0 * M_PI / 3) * pr * pr * pr;
 	dm = rho_0 * dv;
@@ -33,82 +35,104 @@ void SPHSimulator::init_sim() {
 		for (int j = 0; j < DIM; j++) {
 			if (is_2d) {
 				const Vec3 pos = Vec3(i * two_r, j * two_r, 0);
+			
 				particles.push_back(Particle(dm, dv, l + t + (is_2d ? Vec3() : n) + pos));
 			} else {
 				for (int k = 0; k < DIM; k++) {
-					const Vec3 pos = Vec3(i * two_r, -1 + j * two_r, k * two_r);
+					Vec3 pos = Vec3(i * two_r, -1 + j * two_r, k * two_r);
+					if (m_iTestCase == 1) {
+						pos.x += 3;
+						pos.z -= 2;
+					}
 					particles.push_back(Particle(dm, dv, l + t + (is_2d ? Vec3() : n) + pos));
 				}
 			}
 
 		}
 	}
-	// Boundaries
-	//boundary_particles.push_back(Particle(dm, 0, Vec3(0, -0.75, 0), rho_0));
-	const Real boundary_radius = particle_radius;
-	int h_count = 6;
-	int v_count = (3 + 0.75) / boundary_radius;
-	int d_count = is_2d ? 0 : 4 / boundary_radius;
-	l = Vec3(-h_count * boundary_radius, 0, 0);
-	auto r = Vec3(h_count * boundary_radius, 0, 0);
-	t = Vec3(0, -1 + v_count * boundary_radius, 0);
-	n = is_2d ? Vec3() : Vec3(0, 0, -DIM * two_r);
-	for (int k = 0; k < 1; k++) {
-		for (int i = 0; i < 2 * h_count; i++) {
-			for (int j = 0; j <= 2 * d_count; j++) {
-				Vec3 pos = Vec3(i * boundary_radius, -0.75 - k * boundary_radius, j * boundary_radius);
-				boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 });
-				pos.z = -j * boundary_radius;
-				boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 });
-			}
-		}
-		for (int i = 0; i < v_count; i++) {
-			for (int j = 0; j <= 2 * d_count; j++) {
-				Vec3 pos = Vec3(-k * boundary_radius, -i * boundary_radius, j * boundary_radius);
-				boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0 });
-				pos.z = -j * boundary_radius;
-				boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0 });
-				pos.x = k * boundary_radius;
-				pos.z = j * boundary_radius;
-				boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0 });
-				pos.z = -j * boundary_radius;
-				boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0 });
-			}
-		}
-		if (!is_2d) {
-			auto nf = {
-					n + 2 * Vec3(0, 0, d_count * boundary_radius) ,
-					n - 2 * Vec3(0, 0, d_count * boundary_radius)
-			};
-			for (const auto& p : nf) {
-				for (int i = 0; i < 2 * h_count; i++) {
-					for (int j = 0; j < v_count; j++) {
-						Vec3 pos = Vec3(i * boundary_radius, -j * boundary_radius, 0);
-						boundary_particles.push_back(Particle{ dm, 0, pos + l + t + p , rho_0 });
-						pos.x = k * boundary_radius;
-						boundary_particles.push_back(Particle{ dm, 0, pos + r + t + p , rho_0 });
-					}
-				}
-
-			}
-		}
-
-		/*for (int i = 0; i < d_count; i++) {
-			Vec3 pos = Vec3(-k * particle_radius, k * particle_radius, i * particle_radius);
-			boundary_particles.push_back(Particle{ dm, 0, pos + l + t , rho_0 });
-			pos = Vec3(k * particle_radius, -i * particle_radius, 0);
-			boundary_particles.push_back(Particle{ dm, 0, pos + r + t , rho_0 });
-		}*/
-	}
-	// The order is important!
 	neighborhood_searcher.reset();
 	neighborhood_searcher =
 		std::make_unique<NeighborhoodSearcher>(support_radius);
 	neighborhood_searcher->register_set(particles);
+	// Boundaries
+	//boundary_particles.push_back(Particle(dm, 0, Vec3(0, -0.75, 0), rho_0));
+	boundary_radius = particle_radius;
+	int h_count = 6;
+	int d_count = is_2d ? 0 : 4 / boundary_radius;
+	l = Vec3(-h_count * boundary_radius, 0, 0);
+	n = is_2d ? Vec3() : Vec3(0, 0, -DIM * two_r);
+	if (m_iTestCase == 0) {
+		int v_count = (3 + 0.75) / boundary_radius;
+		auto r = Vec3(h_count * boundary_radius, 0, 0);
+		t = Vec3(0, -1 + v_count * boundary_radius, 0);
+		for (int k = 0; k < 1; k++) {
+			for (int i = 0; i < 2 * h_count; i++) {
+				for (int j = 0; j <= 2 * d_count; j++) {
+					Vec3 pos = Vec3(i * boundary_radius, -0.75 - k * boundary_radius, j * boundary_radius);
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 });
+					pos.z = -j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 });
+				}
+			}
+			for (int i = 0; i < v_count; i++) {
+				for (int j = 0; j <= 2 * d_count; j++) {
+					Vec3 pos = Vec3(-k * boundary_radius, -i * boundary_radius, j * boundary_radius);
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0 });
+					pos.z = -j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0 });
+					pos.x = k * boundary_radius;
+					pos.z = j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0 });
+					pos.z = -j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0 });
+				}
+			}
+			if (!is_2d) {
+				auto nf = {
+						n + 2 * Vec3(0, 0, d_count * boundary_radius) ,
+						n - 2 * Vec3(0, 0, d_count * boundary_radius)
+				};
+				for (const auto& p : nf) {
+					for (int i = 0; i < 2 * h_count; i++) {
+						for (int j = 0; j < v_count; j++) {
+							Vec3 pos = Vec3(i * boundary_radius, -j * boundary_radius, 0);
+							boundary_particles.push_back(Particle{ dm, 0, pos + l + t + p , rho_0 });
+							pos.x = k * boundary_radius;
+							boundary_particles.push_back(Particle{ dm, 0, pos + r + t + p , rho_0 });
+						}
+					}
+
+				}
+			}
+
+		}
+	} else {
+		h_count = 20;
+		for (int k = 0; k < 3; k++) {
+
+			for (int i = 0; i < 2 * h_count; i++) {
+				for (int j = 0; j < 2 * d_count; j++) {
+					Vec3 pos = Vec3(i * boundary_radius, -0.75 - k * boundary_radius, j * boundary_radius);
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 , /* visible */ k > 0});
+					pos.z = -j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0, /* visible */ k  > 0 });
+				}
+			}
+		}
+		DUC->box->samples.clear();
+		DUC->box->sample_mesh();
+		samples = DUC->box->samples;
+		for (int i = 0; i < samples.size(); i++) {
+			samples[i] += box_t;
+			samples[i] *= box_s;
+			boundary_particles.push_back(Particle{ dm, 0, samples[i], rho_0 });
+		}
+
+	}
+	
 	neighborhood_searcher->register_set(boundary_particles);
 	neighborhood_searcher->find_neighborhoods();
 	compute_boundary_volumes();
-	DUC->box->sample_mesh();
 
 }
 
@@ -134,6 +158,7 @@ void SPHSimulator::compute_boundary_volumes() {
 
 void SPHSimulator::simulateTimestep(float time_step) {
 	// Implements IISPH as described in [Koschier2019] pp. 14
+	time_step *= 10;
 	update_time_step(time_step);
 	neighborhood_searcher->find_neighborhoods();
 	compute_density();
@@ -473,15 +498,12 @@ void SPHSimulator::integrate(float dt) {
 
 
 const char* SPHSimulator::getTestCasesStr() {
-	return "Box";
+	return "Dam, Box";
 }
 
 void SPHSimulator::initUI(DrawingUtilitiesClass * DUC) {
 	this->DUC = DUC;
 	this->context = DUC->device_context;
-	particles.clear();
-	boundary_particles.clear();
-	init_sim();
 }
 
 void SPHSimulator::reset() {
@@ -492,24 +514,27 @@ void SPHSimulator::reset() {
 }
 
 void SPHSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext) {
+	const float br = boundary_radius;
+	const float pr = particle_radius;
+	DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
+
+	for (int i = 0; i < boundary_particles.size(); i++) {
+		if (boundary_particles[i].visible) {
+			DUC->drawSphere(boundary_particles[i].pos, { br, br, br });
+		}
+	}
+	DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.5));
+	for (int i = 0; i < particles.size(); i++) {
+		DUC->drawSphere(particles[i].pos, { pr, pr, pr });
+	}
 	switch (m_iTestCase) {
 	case 0:
 	{
-		DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.5));
-		for (int i = 0; i < particles.size(); i++) {
-			const float r = particle_radius;
-			DUC->drawSphere(particles[i].pos, { r, r, r });
-		}
-		DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
-		for (int i = 0; i < boundary_particles.size(); i++) {
-			const float r = particle_radius;
-			DUC->drawSphere(boundary_particles[i].pos, { r, r, r });
-		}
-		/*DUC->drawRigidBody(Vec3(), Vec3(), Vec3(1, 1, 1));
-		DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
-		for (int i = 0; i < DUC->box->samples.size(); i++) {
-			DUC->drawSphere(DUC->box->samples[i], { 0.3, 0.3, 0.3 });
-		}*/
+	}
+	break;
+	case 1:
+	{
+		DUC->drawRigidBody(box_t, box_r,box_s );
 	}
 	break;
 	default:
@@ -518,6 +543,23 @@ void SPHSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext) {
 }
 
 void SPHSimulator::notifyCaseChanged(int testCase) {
+	m_iTestCase = testCase;
+	init_sim();
+	switch (testCase) {
+	case 0:
+	{
+		
+
+	}
+	break;
+	case 1:
+	{
+
+
+	}
+	break;
+
+	}
 }
 
 void SPHSimulator::externalForcesCalculations(float timeElapsed) {

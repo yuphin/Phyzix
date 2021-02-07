@@ -12,15 +12,20 @@ Sandbox::Sandbox() {
 static int num_run = 0;
 const char* Sandbox::getTestCasesStr()
 {
-	return "Many Bodies,2,3,4,5,6,Dam,Box";
+	return "Many Bodies,2,3,4,5,6,Dam,Box,8,9,10,11";
 }
 
 void Sandbox::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
-	TwAddVarRW(DUC->g_pTweakBar, "Render Planes", TW_TYPE_BOOLCPP, &render_planes, "");
-	TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, set_gravity, get_gravity, &gravity, "");
-	TwAddButton(DUC->g_pTweakBar, "Create Random Box", addRandomBox, this, "");
-	TwAddButton(DUC->g_pTweakBar, "Create Random Sphere", addRandomSphere, this, "");
+	if (m_iTestCase >= 10) {
+		sf->initUI(DUC);
+	}
+	else {
+		TwAddVarRW(DUC->g_pTweakBar, "Render Planes", TW_TYPE_BOOLCPP, &render_planes, "");
+		TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, set_gravity, get_gravity, &gravity, "");
+		TwAddButton(DUC->g_pTweakBar, "Create Random Box", addRandomBox, this, "");
+		TwAddButton(DUC->g_pTweakBar, "Create Random Sphere", addRandomSphere, this, "");
+	}
 }
 
 void TW_CALL Sandbox::addRandomBox(void* value) {
@@ -51,6 +56,10 @@ void TW_CALL Sandbox::set_gravity(const void* value, void* client_data) {
 void Sandbox::reset() {}
 
 void Sandbox::drawFrame(ID3D11DeviceContext* context) {
+	if (m_iTestCase >= 10) {
+		sf->drawFrame(context);
+		return;
+	}
 	DUC->setUpLighting(Vec3(0, 0, 0), 0.4 * Vec3(1, 1, 1), 2000.0, Vec3(0.5, 0.5, 0.5));
 	for (int i = 0; i < rigid_bodies.size(); i++) {
 		switch (rigid_bodies[i].type) {
@@ -108,7 +117,12 @@ void Sandbox::notifyCaseChanged(int testCase) {
 	mouse_force = 0;
 	render_planes = false;
 	const int bnd_set_idx = 1;
-	if (testCase >= 6) {
+	if (testCase >= 10) {
+		sf = std::make_unique<StableFluid>();
+		sf->pass_time_step_variable(*timestep);
+		sf->notifyCaseChanged(testCase - 10);
+	}
+	else if (testCase >= 6) {
 		sph = std::make_unique<SPHSimulator>();
 		sph_timestep = 0.01f;
 		sph->pass_time_step_variable(sph_timestep);
@@ -373,6 +387,10 @@ void Sandbox::handle_collisions() {
 }
 
 void Sandbox::simulateTimestep(float time_step) {
+	if (m_iTestCase >= 10) {
+		sf->simulateTimestep(time_step);
+		return;
+	}
 	num_run++;
 	if (m_iTestCase == 3) {
 		static std::mt19937 eng;

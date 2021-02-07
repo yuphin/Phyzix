@@ -331,7 +331,6 @@ void Sandbox::handle_collisions() {
 	bool resolve = false;
 	Contact* ci = nullptr;
 	CollisionData data;
-#pragma omp parallel for schedule(auto)
 	for (int i = 0; i < rigid_bodies.size() - 1; i++) {
 
 		RigidBody& b1 = rigid_bodies[i];

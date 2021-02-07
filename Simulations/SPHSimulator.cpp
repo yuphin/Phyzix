@@ -15,7 +15,7 @@ void SPHSimulator::init_sim(const Vec3& gravity, const Real rho_0,
 	this->rho_0 = rho_0;
 	this->num_particles = num_particles;
 	this->particle_radius = particle_radius;
-	this->boundary_radius = particle_radius;
+	this->boundary_radius = 0.4;
 	const auto& pr = particle_radius;
 
 	dv = is_2d ? 0.8 * M_PI * pr * pr : 0.8 * (4.0 * M_PI / 3) * pr * pr * pr;

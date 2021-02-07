@@ -38,6 +38,7 @@ Mat4 RigidBody::get_transformed_inertia(const Mat4& inertia) {
 	return rot * inertia * rot_transpose;
 }
 
+
 void RigidBody::make_plane(float offset, const Vec3& normal) {
 	this->offset = offset;
 	this->normal = normal;
@@ -63,6 +64,11 @@ void RigidBody::make_box(const Vec3& position, const Vec3& size, int mass) {
 	inv_mass = 1.0f / mass;
 	type = RigidBodyType::CUBOID;
 	calc_inv_inertia_tensor();
+}
+
+void RigidBody::apply_force(const Vec3& loc, const Vec3& force) {
+	this->force += force;
+	this->torque += cross((loc - position), force);
 }
 
 void RigidBody::calc_inv_inertia_tensor() {

@@ -48,8 +48,8 @@ void NeighborhoodSearcher::update() {
 	std::vector<std::tuple<int, int, const HashVec& ,const HashVec&>> updated;
 	updated.reserve(num_particles * 0.05);
 	for (int i = 0; i < particle_sets.size(); i++) {
-		if (i == particle_sets.size() - 1) {
-			// Assume the last set is a fixed boundary
+		if (i == 1) {
+			// Assume the set idx 1 is static bnd
 			continue;
 		}
 		auto& keys = particle_sets[i].keys;

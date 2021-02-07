@@ -17,6 +17,7 @@ public:
 	void make_plane(float offset, const Vec3& normal);
 	void make_sphere(float radius, const Vec3& pos, int mass);
 	void make_box(const Vec3& position, const Vec3& size, int mass);
+	void apply_force(const Vec3& loc, const Vec3& force);
 	Vec3 position;
 	Vec3 size;
 	Vec3 linear_velocity;
@@ -32,6 +33,7 @@ public:
 	Mat4 inv_inertia_0;
 	Quat orientation = { 0,0,0,1 };
 	RigidBodyType type;
+	std::vector<Vec3> samples;
 private:
 	void calc_inv_inertia_tensor();
 };

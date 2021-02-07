@@ -1,139 +1,57 @@
 #include "SPHSimulator.h"
 #include "util/util.h"
-#define DIM 5
+#define DIM 3
 #define USE_NEIGHBORHOOD 1
 // TODO : Better boundary sampling
 // Fix sorting for neighbor search
 SPHSimulator::SPHSimulator() {
-	m_iTestCase = 0;
-	num_particles = is_2d ? DIM * DIM : DIM * DIM * DIM;
-	gravity = Vec3(0, -9, 0);
-	particle_radius = 0.3;
-	rho_0 = 1000;
+	is_2d = false;
+
+}
+
+void SPHSimulator::init_sim(const Vec3& gravity, const Real rho_0,
+	const int num_particles, const Real particle_radius) {
+	this->gravity = gravity;
+	this->rho_0 = rho_0;
+	this->num_particles = num_particles;
+	this->particle_radius = particle_radius;
+	this->boundary_radius = particle_radius;
+	const auto& pr = particle_radius;
+
+	dv = is_2d ? 0.8 * M_PI * pr * pr : 0.8 * (4.0 * M_PI / 3) * pr * pr * pr;
+	dm = rho_0 * dv;
 	// For kernel
 	support_radius = 4 * particle_radius;
 	kernel.init(support_radius);
 	particles.reserve(num_particles);
 	srand(time(NULL));
-}
-
-void SPHSimulator::init_sim() {
-	// Init fluid particles
-	int k = 2;
-	const Vec3 offset = Vec3{ 0, 0, -0.25 };
-	const double two_r = particle_radius * 2.0f;
-	const auto& pr = particle_radius;
-	auto l = Vec3(-DIM / 2 * two_r, 0, 0);
-	auto t = Vec3(0, -0.25 + DIM * two_r, 0);
-	auto n = Vec3(0, 0, -DIM * two_r) + 1.5 * offset;
 	particles.clear();
 	boundary_particles.clear();
-	// Fluids
-	dv = is_2d ? 0.8 * M_PI * pr * pr : 0.8 * (4.0 * M_PI / 3) * pr * pr * pr;
-	dm = rho_0 * dv;
-	for (int i = 0; i < DIM; i++) {
-		for (int j = 0; j < DIM; j++) {
-			if (is_2d) {
-				const Vec3 pos = Vec3(i * two_r, j * two_r, 0);
-			
-				particles.push_back(Particle(dm, dv, l + t + (is_2d ? Vec3() : n) + pos));
-			} else {
-				for (int k = 0; k < DIM; k++) {
-					Vec3 pos = Vec3(i * two_r, -1 + j * two_r, k * two_r);
-					if (m_iTestCase == 1) {
-						pos.x += 3;
-						pos.z -= 2;
-					}
-					particles.push_back(Particle(dm, dv, l + t + (is_2d ? Vec3() : n) + pos));
-				}
-			}
-
-		}
-	}
 	neighborhood_searcher.reset();
 	neighborhood_searcher =
 		std::make_unique<NeighborhoodSearcher>(support_radius);
-	neighborhood_searcher->register_set(particles);
-	// Boundaries
-	//boundary_particles.push_back(Particle(dm, 0, Vec3(0, -0.75, 0), rho_0));
-	boundary_radius = particle_radius;
-	int h_count = 6;
-	int d_count = is_2d ? 0 : 4 / boundary_radius;
-	l = Vec3(-h_count * boundary_radius, 0, 0);
-	n = is_2d ? Vec3() : Vec3(0, 0, -DIM * two_r);
-	if (m_iTestCase == 0) {
-		int v_count = (3 + 0.75) / boundary_radius;
-		auto r = Vec3(h_count * boundary_radius, 0, 0);
-		t = Vec3(0, -1 + v_count * boundary_radius, 0);
-		for (int k = 0; k < 1; k++) {
-			for (int i = 0; i < 2 * h_count; i++) {
-				for (int j = 0; j <= 2 * d_count; j++) {
-					Vec3 pos = Vec3(i * boundary_radius, -0.75 - k * boundary_radius, j * boundary_radius);
-					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 });
-					pos.z = -j * boundary_radius;
-					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 });
-				}
-			}
-			for (int i = 0; i < v_count; i++) {
-				for (int j = 0; j <= 2 * d_count; j++) {
-					Vec3 pos = Vec3(-k * boundary_radius, -i * boundary_radius, j * boundary_radius);
-					boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0 });
-					pos.z = -j * boundary_radius;
-					boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0 });
-					pos.x = k * boundary_radius;
-					pos.z = j * boundary_radius;
-					boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0 });
-					pos.z = -j * boundary_radius;
-					boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0 });
-				}
-			}
-			if (!is_2d) {
-				auto nf = {
-						n + 2 * Vec3(0, 0, d_count * boundary_radius) ,
-						n - 2 * Vec3(0, 0, d_count * boundary_radius)
-				};
-				for (const auto& p : nf) {
-					for (int i = 0; i < 2 * h_count; i++) {
-						for (int j = 0; j < v_count; j++) {
-							Vec3 pos = Vec3(i * boundary_radius, -j * boundary_radius, 0);
-							boundary_particles.push_back(Particle{ dm, 0, pos + l + t + p , rho_0 });
-							pos.x = k * boundary_radius;
-							boundary_particles.push_back(Particle{ dm, 0, pos + r + t + p , rho_0 });
-						}
-					}
+}
 
-				}
-			}
+void SPHSimulator::init_particles(const Vec3& x_offset, const Vec3& y_offset,
+	const Vec3& z_offset, int DIM_X, int DIM_Y, int DIM_Z) {
+	const Real two_r = particle_radius * 2.0f;
+	for (int i = 0; i < DIM_X; i++) {
+		for (int j = 0; j < DIM_Y; j++) {
+			if (is_2d) {
+				const Vec3 pos = Vec3(i * two_r, j * two_r, 0);
 
-		}
-	} else {
-		h_count = 20;
-		for (int k = 0; k < 3; k++) {
-
-			for (int i = 0; i < 2 * h_count; i++) {
-				for (int j = 0; j < 2 * d_count; j++) {
-					Vec3 pos = Vec3(i * boundary_radius, -0.75 - k * boundary_radius, j * boundary_radius);
-					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0 , /* visible */ k > 0});
-					pos.z = -j * boundary_radius;
-					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0, /* visible */ k  > 0 });
+				particles.push_back(Particle(dm, dv,
+					x_offset + y_offset + pos));
+			} else {
+				for (int k = 0; k < DIM_Z; k++) {
+					Vec3 pos = Vec3(i * two_r, -1 + j * two_r, k * two_r);
+					particles.push_back(Particle(dm, dv,
+						x_offset + y_offset + (is_2d ? Vec3() : z_offset) + pos));
 				}
 			}
 		}
-		DUC->box->samples.clear();
-		DUC->box->sample_mesh();
-		samples = DUC->box->samples;
-		for (int i = 0; i < samples.size(); i++) {
-			samples[i] += box_t;
-			samples[i] *= box_s;
-			boundary_particles.push_back(Particle{ dm, 0, samples[i], rho_0 });
-		}
-
 	}
-	
-	neighborhood_searcher->register_set(boundary_particles);
-	neighborhood_searcher->find_neighborhoods();
-	compute_boundary_volumes();
-
+	neighborhood_searcher->register_set(particles);
 }
 
 void SPHSimulator::compute_boundary_volumes() {
@@ -144,6 +62,16 @@ void SPHSimulator::compute_boundary_volumes() {
 #if USE_NEIGHBORHOOD
 		const auto& boundary_neighbors = neighborhood_searcher->
 			particle_sets[BND_ID].neighbor_idxs[BND_ID][i];
+		if (neighborhood_searcher->particle_sets[BND_ID].neighbor_idxs.size() > MV_BND_ID) {
+			auto& mov_boundary_neighbors = neighborhood_searcher->
+				particle_sets[BND_ID].neighbor_idxs[MV_BND_ID][i];
+			//std::sort(mov_boundary_neighbors.begin(), mov_boundary_neighbors.end()); //jic
+			for (const auto j : mov_boundary_neighbors) {
+				const Vec3& xj = moving_boundary_particles[j].pos;
+				delta += kernel.W(norm(xi - xj));
+			}
+		}
+
 		for (const auto j : boundary_neighbors) {
 #else
 		for (int j = 0; j < boundary_particles.size(); j++) {
@@ -154,11 +82,30 @@ void SPHSimulator::compute_boundary_volumes() {
 		}
 		boundary_particles[i].dv = 1.0 / delta;
 	}
+#if USE_NEIGHBORHOOD
+	for (int i = 0; i < moving_boundary_particles.size(); i++) {
+		Real delta = kernel.W(0);
+		const Vec3& xi = moving_boundary_particles[i].pos;
+		const auto& boundary_neighbors = neighborhood_searcher->
+			particle_sets[MV_BND_ID].neighbor_idxs[BND_ID][i];
+		auto& mov_boundary_neighbors = neighborhood_searcher->
+			particle_sets[MV_BND_ID].neighbor_idxs[MV_BND_ID][i];
+		//std::sort(mov_boundary_neighbors.begin(), mov_boundary_neighbors.end()); //jic
+		for (const auto j : boundary_neighbors) {
+			const Vec3& xj = boundary_particles[j].pos;
+			delta += kernel.W(norm(xi - xj));
+		}
+		for (const auto j : mov_boundary_neighbors) {
+			const Vec3& xj = moving_boundary_particles[j].pos;
+			delta += kernel.W(norm(xi - xj));
+		}
+		moving_boundary_particles[i].dv = 1.0 / delta;
+	}
+#endif
 }
 
-void SPHSimulator::simulateTimestep(float time_step) {
+void SPHSimulator::simulateTimestep(float ts) {
 	// Implements IISPH as described in [Koschier2019] pp. 14
-	time_step *= 10;
 	update_time_step(time_step);
 	neighborhood_searcher->find_neighborhoods();
 	compute_density();
@@ -167,6 +114,7 @@ void SPHSimulator::simulateTimestep(float time_step) {
 	solve_pressure(time_step);
 	integrate(time_step);
 }
+
 
 void SPHSimulator::update_time_step(float& time_step) {
 	Real max = 0.1;
@@ -215,13 +163,23 @@ void SPHSimulator::compute_density() {
 #if USE_NEIGHBORHOOD
 		const auto& boundary_neighbors = neighborhood_searcher->
 			particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
+		if (neighborhood_searcher->particle_sets[FLD_ID].neighbor_idxs.size() > MV_BND_ID) {
+			auto& mov_boundary_neighbors = neighborhood_searcher->
+				particle_sets[FLD_ID].neighbor_idxs[MV_BND_ID][i];
+			//std::sort(mov_boundary_neighbors.begin(), mov_boundary_neighbors.end()); //jic
+			for (const auto j : mov_boundary_neighbors) {
+				const Vec3& xj = moving_boundary_particles[j].pos;
+				auto krnel = kernel.W(norm(xi - xj));
+				density += particles[i].gamma1 * moving_boundary_particles[j].dv * krnel;
+			}
+		}
 		for (const auto j : boundary_neighbors) {
 #else
 		for (int j = 0; j < boundary_particles.size(); j++) {
 #endif
 			const Vec3& xj = boundary_particles[j].pos;
 			auto krnel = kernel.W(norm(xi - xj));
-			density += boundary_particles[j].dv * krnel;
+			density += particles[i].gamma1 * boundary_particles[j].dv * krnel;
 		}
 		particles[i].rho = density * rho_0;
 		particles[i].accel = gravity;
@@ -232,6 +190,8 @@ void SPHSimulator::compute_density() {
 void SPHSimulator::compute_non_pressure_forces() {
 	// TODO
 }
+
+
 
 void SPHSimulator::enforce_continuity(float dt) {
 	// [Koschier2019] Eq. 49 : calculate A_ii
@@ -260,8 +220,20 @@ void SPHSimulator::enforce_continuity(float dt) {
 		}
 		// Boundary
 #if USE_NEIGHBORHOOD
+
 		const auto& boundary_neighbors = neighborhood_searcher->
 			particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
+		if (neighborhood_searcher->particle_sets[FLD_ID].neighbor_idxs.size() > MV_BND_ID) {
+			auto& mov_boundary_neighbors = neighborhood_searcher->
+				particle_sets[FLD_ID].neighbor_idxs[MV_BND_ID][i];
+			//std::sort(mov_boundary_neighbors.begin(), mov_boundary_neighbors.end()); //jic
+			for (const auto j : mov_boundary_neighbors) {
+				const Vec3& xj = moving_boundary_particles[j].pos;
+				const Vec3 del_w = kernel.W_grad(xi - xj);
+				term1 += (moving_boundary_particles[j].dv / rho2_i) * del_w;
+			}
+		}
+
 		for (const auto j : boundary_neighbors) {
 #else
 		for (int j = 0; j < boundary_particles.size(); j++) {
@@ -295,7 +267,7 @@ void SPHSimulator::enforce_continuity(float dt) {
 			const Vec3 del_w = kernel.W_grad(xi - xj);
 			const Vec3 term2 = dv_div_rho2 * del_w;
 			particles[i].aii -= particles[j].dv * dot((particles[i].dv_div_rhoSqr_grad + term2), del_w);
-		
+
 			// While we're at it, calculate predicted density according to the continuity 
 			// equation i.e:
 			// rho* = rho - dt * rho * div(v*)
@@ -310,6 +282,20 @@ void SPHSimulator::enforce_continuity(float dt) {
 #if USE_NEIGHBORHOOD
 		const auto& boundary_neighbors = neighborhood_searcher->
 			particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
+		if (neighborhood_searcher->particle_sets[FLD_ID].neighbor_idxs.size() > MV_BND_ID) {
+			auto& mov_boundary_neighbors = neighborhood_searcher->
+				particle_sets[FLD_ID].neighbor_idxs[MV_BND_ID][i];
+			//std::sort(mov_boundary_neighbors.begin(), mov_boundary_neighbors.end()); //jic
+			for (const auto j : mov_boundary_neighbors) {
+				const Vec3& xj = moving_boundary_particles[j].pos;
+				const Vec3& vj = moving_boundary_particles[j].vel;
+				const Vec3 del_w = kernel.W_grad(xi - xj);
+				const Vec3 term2 = dv_div_rho2 * del_w;
+				particles[i].aii -= moving_boundary_particles[j].dv *
+					dot((particles[i].dv_div_rhoSqr_grad + term2), del_w);
+				particles[i].rho_star += dt * dot(moving_boundary_particles[j].dv * (vi - vj), del_w);
+			}
+		}
 		for (const auto j : boundary_neighbors) {
 #else
 		for (int j = 0; j < boundary_particles.size(); j++) {
@@ -404,6 +390,19 @@ void SPHSimulator::solve_pressure(float time_step) {
 #if USE_NEIGHBORHOOD
 			const auto& boundary_neighbors = neighborhood_searcher->
 				particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
+			if (neighborhood_searcher->particle_sets[FLD_ID].neighbor_idxs.size() > MV_BND_ID) {
+				auto& mov_boundary_neighbors = neighborhood_searcher->
+					particle_sets[FLD_ID].neighbor_idxs[MV_BND_ID][i];
+				//std::sort(mov_boundary_neighbors.begin(), mov_boundary_neighbors.end()); //jic
+
+				for (const auto j : mov_boundary_neighbors) {
+					const Vec3& xj = moving_boundary_particles[j].pos;
+					// Only include fluid pressures
+					const Vec3 del_w = kernel.W_grad(xi - xj);
+					sum += moving_boundary_particles[j].dv * dot(
+						particles[i].dv_divRhoSqr_p_grad, del_w);
+				}
+			}
 			for (const auto j : boundary_neighbors) {
 #else
 			for (int j = 0; j < boundary_particles.size(); j++) {
@@ -479,8 +478,20 @@ void SPHSimulator::integrate(float dt) {
 		}
 		// Mirror pressure, see [Akinci2012] and [Koschier2019]
 #if USE_NEIGHBORHOOD
-		const auto& boundary_neighbors = neighborhood_searcher->
+		auto& boundary_neighbors = neighborhood_searcher->
 			particle_sets[FLD_ID].neighbor_idxs[BND_ID][i];
+		if (neighborhood_searcher->particle_sets[FLD_ID].neighbor_idxs.size() > MV_BND_ID) {
+			auto& mov_boundary_neighbors = neighborhood_searcher->
+				particle_sets[FLD_ID].neighbor_idxs[MV_BND_ID][i];
+			//std::sort(mov_boundary_neighbors.begin(), mov_boundary_neighbors.end()); //jic
+			for (const auto j : mov_boundary_neighbors) {
+				const Vec3& xj = moving_boundary_particles[j].pos;
+				auto del_w = kernel.W_grad(xi - xj);
+				Vec3 a = moving_boundary_particles[j].dv * p_div_rho2 * del_w;
+				particles[i].accel -= a;
+				moving_boundary_particles[j].add_force(particles[i].mass * a);
+			}
+		}
 		for (const auto j : boundary_neighbors) {
 #else
 		for (int j = 0; j < boundary_particles.size(); j++) {
@@ -489,12 +500,11 @@ void SPHSimulator::integrate(float dt) {
 			auto del_w = kernel.W_grad(xi - xj);
 			Vec3 a = boundary_particles[j].dv * p_div_rho2 * del_w;
 			particles[i].accel -= a;
-			particles[i].force += particles[i].mass * a;
 		}
 		particles[i].vel += particles[i].accel * dt;
 		particles[i].pos += particles[i].vel * dt;
-		}
-		}
+	}
+}
 
 
 const char* SPHSimulator::getTestCasesStr() {
@@ -534,7 +544,7 @@ void SPHSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext) {
 	break;
 	case 1:
 	{
-		DUC->drawRigidBody(box_t, box_r,box_s );
+		DUC->drawRigidBody(box_t, box_r, box_s);
 	}
 	break;
 	default:
@@ -544,17 +554,113 @@ void SPHSimulator::drawFrame(ID3D11DeviceContext * pd3dImmediateContext) {
 
 void SPHSimulator::notifyCaseChanged(int testCase) {
 	m_iTestCase = testCase;
-	init_sim();
+
+	auto num_particles = is_2d ? DIM * DIM : DIM * DIM * DIM;
+	init_sim(Vec3(0, -9.81, 0), 1000, num_particles, 0.3);
+	const Vec3 offset = Vec3{ 0, 0, -0.25 };
+	const Real two_r = particle_radius * 2.0f;
+	auto n = is_2d ? Vec3() : Vec3(0, 0, -DIM * two_r);
+	int h_count = 6;
+	int d_count = is_2d ? 0 : (4 / boundary_radius);
+	auto l = Vec3(-h_count * boundary_radius, 0, 0);
+	time_step = 0.01;
+	const int bnd_set_idx = 1;
 	switch (testCase) {
 	case 0:
 	{
-		
+		init_particles(Vec3(-DIM / 2 * two_r, 0, 0),
+			Vec3(0, -0.25 + DIM * two_r, 0),
+			Vec3(0, 0, -DIM * two_r) + 1.5 * offset, DIM, DIM, DIM);
+		int v_count = (3 + 0.75) / boundary_radius;
+		auto t = Vec3(0, -1 + v_count * boundary_radius, 0);
+		auto r = Vec3(h_count * boundary_radius, 0, 0);
+		for (int k = 0; k < 1; k++) {
+			for (int i = 0; i < 2 * h_count; i++) {
+				for (int j = 0; j <= 2 * d_count; j++) {
+					Vec3 pos = Vec3(i * boundary_radius, -0.75 - k * boundary_radius, j * boundary_radius);
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0,
+						bnd_set_idx });
+					pos.z = -j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + n, rho_0,
+						bnd_set_idx });
+				}
+			}
+			for (int i = 0; i < v_count; i++) {
+				for (int j = 0; j <= 2 * d_count; j++) {
+					Vec3 pos = Vec3(-k * boundary_radius, -i * boundary_radius, j * boundary_radius);
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0,
+						bnd_set_idx });
+					pos.z = -j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + l + t + n , rho_0,
+						bnd_set_idx });
+					pos.x = k * boundary_radius;
+					pos.z = j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0,
+						bnd_set_idx });
+					pos.z = -j * boundary_radius;
+					boundary_particles.push_back(Particle{ dm, 0, pos + r + t + n , rho_0,
+						bnd_set_idx });
+				}
+			}
+			if (!is_2d) {
+				auto nf = {
+						n + 2 * Vec3(0, 0, d_count * boundary_radius) ,
+						n - 2 * Vec3(0, 0, d_count * boundary_radius)
+				};
+				for (const auto& p : nf) {
+					for (int i = 0; i < 2 * h_count; i++) {
+						for (int j = 0; j < v_count; j++) {
+							Vec3 pos = Vec3(i * boundary_radius, -j * boundary_radius, 0);
+							moving_boundary_particles.push_back(Particle{ dm, 0, pos + l + t + p , rho_0,
+								bnd_set_idx });
+							pos.x = k * boundary_radius;
+							moving_boundary_particles.push_back(Particle{ dm, 0, pos + r + t + p , rho_0,
+								bnd_set_idx });
+						}
+					}
 
+				}
+			}
+
+		}
+		neighborhood_searcher->register_set(boundary_particles);
+		neighborhood_searcher->register_set(moving_boundary_particles);
+		neighborhood_searcher->find_neighborhoods();
+		compute_boundary_volumes();
 	}
 	break;
 	case 1:
 	{
+		init_particles(Vec3(-DIM / 2 * two_r + 3, 0, 0),
+			Vec3(0, -0.25 + DIM * two_r, 0),
+			Vec3(0, 0, -DIM * two_r - 2) + 1.5 * offset, DIM, DIM, DIM);
+		h_count = 20;
+		for (int k = 0; k < 3; k++) {
 
+			for (int i = 0; i < 2 * h_count; i++) {
+				for (int j = 0; j < 2 * d_count; j++) {
+					Vec3 pos = Vec3(i * boundary_radius,
+						-0.75 - k * boundary_radius,
+						j * boundary_radius);
+					boundary_particles.push_back(
+						Particle{ dm, 0, pos + l + n, rho_0 , 2, /* visible */ k > 0 });
+					pos.z = -j * boundary_radius;
+					boundary_particles.push_back(
+						Particle{ dm, 0, pos + l + n, rho_0, 2, /* visible */ k > 0 });
+				}
+			}
+		}
+		DUC->box->samples.clear();
+		DUC->box->sample_mesh();
+		samples = DUC->box->samples;
+		for (int i = 0; i < samples.size(); i++) {
+			samples[i] += box_t;
+			samples[i] *= box_s;
+			boundary_particles.push_back(Particle{ dm, 0, samples[i], rho_0 });
+		}
+		neighborhood_searcher->register_set(boundary_particles);
+		neighborhood_searcher->find_neighborhoods();
+		compute_boundary_volumes();
 
 	}
 	break;
@@ -572,5 +678,5 @@ void SPHSimulator::onMouse(int x, int y) {
 }
 
 void SPHSimulator::pass_time_step_variable(float time_step) {
-	this->time_step = &time_step;
+	this->time_step = time_step;
 }

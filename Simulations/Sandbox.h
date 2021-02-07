@@ -3,6 +3,7 @@
 #include "util/util.h"
 #include "collisionDetect.h"
 #include <unordered_map>
+#include "SPHSimulator.h"
 class Sandbox : public Simulator {
 public:
 	// Construtors
@@ -45,17 +46,18 @@ private:
 	void resolve_positions(CollisionData& data);
 	void resolve_velocities(CollisionData& data, Contact* best_col, const std::vector<RigidBody*>& pairs);
 	void calc_after_col_vel(Contact* collision_info, float delta_vel, const std::vector<RigidBody*>& pairs);
+	void create_rb_boundaries(bool create = false);
 
 	Vec3 m_externalForce;
 	Vec3 mouse_force;
 	Vec3 gravity;
-	double bounciness = 0.75;
+	double bounciness = 0.4;
 
 	// UI Attributes
 	Point2D mouse;
 	Point2D trackmouse;
 	Point2D old_trackmouse;
-
+	float sph_timestep;
 	std::vector<RigidBody> rigid_bodies;
 	Plane plane;
 	DrawingUtilitiesClass* DUC;
@@ -63,5 +65,6 @@ private:
 	bool render_planes;
 	std::unordered_map<uint32_t, Contact* (*)(
 		RigidBody*, RigidBody*, Mat4&, CollisionData&)> collision_map;
+	std::unique_ptr<SPHSimulator> sph = nullptr;
 };
 

@@ -4,6 +4,7 @@
 #include "collisionDetect.h"
 #include <unordered_map>
 #include "SPHSimulator.h"
+#include "StableFluid.h"
 class Sandbox : public Simulator {
 public:
 	// Construtors
@@ -66,5 +67,6 @@ private:
 	std::unordered_map<uint32_t, Contact* (*)(
 		RigidBody*, RigidBody*, Mat4&, CollisionData&)> collision_map;
 	std::unique_ptr<SPHSimulator> sph = nullptr;
+	std::unique_ptr<StableFluid> sf = nullptr;
 };
 

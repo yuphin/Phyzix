@@ -25,6 +25,8 @@ using namespace GamePhysics;
 //#define RIGID_BODY_SYSTEM
 //#define SPH_SYSTEM
 //#define DIFFUSION_SYSTEM
+//#define SANDBOX
+//#define FLUID_SYSTEM
 #define SANDBOX
 
 #ifdef TEMPLATE_DEMO
@@ -46,6 +48,11 @@ using namespace GamePhysics;
 #ifdef SPH_SYSTEM
 #include "SPHSimulator.h"
 #endif
+
+#ifdef FLUID_SYSTEM
+#include "StableFluid.h"
+#endif
+
 
 DrawingUtilitiesClass * g_pDUC;
 Simulator * g_pSimulator;
@@ -395,6 +402,12 @@ int main(int argc, char* argv[])
 	g_pSimulator = new SPHSimulator();
 	((SPHSimulator*)g_pSimulator)->pass_time_step_variable(g_fTimestep);
 #endif
+
+#ifdef FLUID_SYSTEM
+	g_pSimulator = new StableFluid();
+	((StableFluid*)g_pSimulator)->pass_time_step_variable(g_fTimestep);
+#endif
+
 	g_pSimulator->reset();
 
 

@@ -113,10 +113,7 @@ void Sandbox::drawFrame(ID3D11DeviceContext* context) {
 void Sandbox::notifyCaseChanged(int testCase) {
 	//testCase = 7;
 	m_iTestCase = testCase;
-	add_box({ -0.5,2,0 }, { 0.3,0.3,0.3 }, 10);
-	add_sphere({ 0.3,2,0 }, 0.5, 10);
 	rigid_bodies.clear();
-	gravity = 0;
 	mouse_force = 0;
 	render_planes = false;
 	const int bnd_set_idx = 1;

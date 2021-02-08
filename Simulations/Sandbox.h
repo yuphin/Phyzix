@@ -64,6 +64,8 @@ private:
 	DrawingUtilitiesClass* DUC;
 	float* timestep;
 	bool render_planes;
+	bool show_static_boundary = true;
+	bool show_dynamic_boundary = true;
 	std::unordered_map<uint32_t, Contact* (*)(
 		RigidBody*, RigidBody*, Mat4&, CollisionData&)> collision_map;
 	std::unique_ptr<SPHSimulator> sph = nullptr;

@@ -10,19 +10,20 @@ Sandbox::Sandbox() {
 }
 static int num_run = 0;
 const char* Sandbox::getTestCasesStr() {
-	return "Many Bodies,2,3,4,5,6,Dam,Box,8,9,10,11";
+	return "Empty,SPH 2D,Dam Break,Boxes,Fire,Smoky";
 }
 
 void Sandbox::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
-	if (m_iTestCase >= 10) {
+	if (m_iTestCase >= 4) {
 		sf->initUI(DUC);
 	}
 	else {
-		TwAddVarRW(DUC->g_pTweakBar, "Render Planes", TW_TYPE_BOOLCPP, &render_planes, "");
-		TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, set_gravity, get_gravity, &gravity, "");
+		TwAddVarRW(DUC->g_pTweakBar, "Static Boundary", TW_TYPE_BOOLCPP, &show_static_boundary, "");
+		TwAddVarRW(DUC->g_pTweakBar, "Dynamic Boundary", TW_TYPE_BOOLCPP, &show_dynamic_boundary, "");
+	/*	TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, set_gravity, get_gravity, &gravity, "");
 		TwAddButton(DUC->g_pTweakBar, "Create Random Box", addRandomBox, this, "");
-		TwAddButton(DUC->g_pTweakBar, "Create Random Sphere", addRandomSphere, this, "");
+		TwAddButton(DUC->g_pTweakBar, "Create Random Sphere", addRandomSphere, this, "");*/
 	}
 }
 
@@ -54,7 +55,7 @@ void TW_CALL Sandbox::set_gravity(const void* value, void* client_data) {
 void Sandbox::reset() {}
 
 void Sandbox::drawFrame(ID3D11DeviceContext* context) {
-	if (m_iTestCase >= 10) {
+	if (m_iTestCase >= 4) {
 		sf->drawFrame(context);
 		return;
 	}
@@ -84,19 +85,22 @@ void Sandbox::drawFrame(ID3D11DeviceContext* context) {
 			break;
 		}
 	}
-	if (m_iTestCase >= 6) {
+	if (m_iTestCase >= 1 && m_iTestCase < 4) {
 		const float br = sph->boundary_radius;
 		const float pr = sph->particle_radius;
 		DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
-
-		for (int i = 0; i < sph->boundary_particles.size(); i++) {
-			if (sph->boundary_particles[i].visible) {
-				DUC->drawSphere(sph->boundary_particles[i].pos, { br, br, br });
+		if (show_static_boundary) {
+			for (int i = 0; i < sph->boundary_particles.size(); i++) {
+				if (sph->boundary_particles[i].visible) {
+					DUC->drawSphere(sph->boundary_particles[i].pos, { br, br, br });
+				}
 			}
 		}
-		for (int i = 0; i < sph->moving_boundary_particles.size(); i++) {
-			if (sph->moving_boundary_particles[i].visible) {
-				DUC->drawSphere(sph->moving_boundary_particles[i].pos, { br, br, br });
+		if (show_dynamic_boundary) {
+			for (int i = 0; i < sph->moving_boundary_particles.size(); i++) {
+				if (sph->moving_boundary_particles[i].visible) {
+					DUC->drawSphere(sph->moving_boundary_particles[i].pos, { br, br, br });
+				}
 			}
 		}
 		DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.5));
@@ -110,79 +114,94 @@ void Sandbox::drawFrame(ID3D11DeviceContext* context) {
 void Sandbox::notifyCaseChanged(int testCase) {
 	//testCase = 7;
 	m_iTestCase = testCase;
+	add_box({ -0.5,2,0 }, { 0.3,0.3,0.3 }, 10);
+	add_sphere({ 0.3,2,0 }, 0.5, 10);
 	rigid_bodies.clear();
 	gravity = 0;
 	mouse_force = 0;
 	render_planes = false;
 	const int bnd_set_idx = 1;
-	if (testCase >= 10) {
+	if (testCase >= 4) {
 		sf = std::make_unique<StableFluid>();
 		sf->pass_time_step_variable(*timestep);
-		sf->notifyCaseChanged(testCase - 10);
+		sf->notifyCaseChanged(testCase - 4);
 	}
-	else if (testCase >= 6) {
+	else if (testCase >= 1) {
 		sph = std::make_unique<SPHSimulator>();
 		sph_timestep = 0.02f;
 		sph->pass_time_step_variable(sph_timestep);
 	}
 	switch (testCase) {
 	case 0:
-		*timestep = 0.001f;
-		add_sphere({ 0.3,0,0 }, 0.5, 10);
-		add_sphere({ 0,2,0 }, 0.5, 10);
+		//*timestep = 0.001f;
+		//add_sphere({ 0.3,0,0 }, 0.5, 10);
+		//add_sphere({ 0,2,0 }, 0.5, 10);
 		gravity = Vec3(0, -9.81f, 0);
 		add_box({ -0.5,2,0 }, { 0.3,0.3,0.3 }, 10);
-		add_box({ 1.0,3,1 }, { 0.3,0.3,0.3 }, 10);
+	/*	add_box({ 1.0,3,1 }, { 0.3,0.3,0.3 }, 10);
 		add_box({ -1.0,4,0.5 }, { 0.3,0.3,0.3 }, 10);
-		add_box({ 0.5,1.5,-0.5 }, { 1,1,1 }, 10);
+		add_box({ 0.5,1.5,-0.5 }, { 1,1,1 }, 10);*/
 		add_sphere({ 0.3,2,0 }, 0.5, 10);
-		add_sphere({ 0.45,3,0 }, 0.5, 10);
-		add_sphere({ -0.45,4,-.5 }, 0.5, 10);
+		/*add_sphere({ 0.45,3,0 }, 0.5, 10);
+		add_sphere({ -0.45,4,-.5 }, 0.5, 10);*/
 		break;
-	case 1:
-		*timestep = 0.005f;
-		add_box({ 0.25, -0.5, 0 }, { 1, 0.5, 0.5 }, 2);
-		add_box({ -0.25, 1, 0 }, { 1, 0.5, 0.5 }, 2);
-		applyForceOnBody(0, { 0.25, -0.5, 0 }, { 0, 10,0 });
-		applyForceOnBody(1, { -0.25, 1, 0 }, { 0, -35,0 });
-		break;
-	case 2:
-		gravity = Vec3(0, -9.81f, 0);
-		*timestep = 0.001f;
-		/*	addRigidBody({ 0, 1, 0 }, { 1, 1, 1 }, 10);
-		addRigidBody({ 2, 1, 0 }, { 1, 1, 1 }, 10);
-		applyForceOnBody(0, { 0, 1.0, 0.0 }, { 100000,0,0 });
-		applyForceOnBody(1, { 2, 1, 0.0 }, { -100000,0,0 });*/
-		add_box({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
-		add_box({ 0, 2, 0 }, { 1, 1, 1 }, 10);
-		applyForceOnBody(1, { 0.0, 0.0, 0.0 }, { 0,-500,0 });
-		break;
-	case 3:
-		*timestep = 0.001f;
-		gravity = Vec3(0, -9.81f, 0);
-		add_box({ 0, 0, 0 }, { 1, 1, 1 }, 10);
-		//applyForceOnBody(0, { 0.0, 0.5, 0.5 }, { 1,1,0 });
-		setOrientationOf(0, Quat(Vec3(0.5f, 0.8f, 1.0f), (float)(M_PI) * 0.5f));
-		add_torque(0, { 5000, 5000, 5000 });
-		break;
-	case 4:
-		*timestep = 0.001f;
-		gravity = Vec3(0, -9.81f, 0);
-		add_sphere({ 0,0,0 }, 0.5, 10);
-		break;
-	case 5:
-		*timestep = 0.001f;
-		gravity = Vec3(0, -9.81f, 0);
 
-		add_box({ 0.5, 0, 0 }, { 1, 1, 1 }, 10);
-		break;
-	case 6:
-		// SPH Dam
+	case 1:
+		// SPH 2D
+	{
+		const int DIM = 10;
+		show_static_boundary = true;
+		*timestep = 0.001f;
+		sph->time_step = 0.001f;
+		bounciness = 0.3;
+		gravity = Vec3(0, -9.81f, 0);
+		sph->is_2d = true;
+		int k = 2;
+		int num_particles = DIM * DIM;
+		Real rho_0 = 100;
+		Real particle_radius = 0.3;
+		const double two_r = particle_radius * 2.0f;
+		const auto& pr = particle_radius;
+		auto l = Vec3(-DIM / 2 * two_r, 0, 0);
+		auto t = Vec3(0, DIM * two_r, 0);
+		sph->init_sim(gravity, rho_0, num_particles, particle_radius);
+		sph->init_particles(l, t, Vec3(), DIM, DIM, 0);
+		sph->boundary_particles.push_back(Particle(sph->dm, 0, Vec3(0, -0.75, 0), rho_0,
+			bnd_set_idx));
+		auto h_count = 20;
+		auto v_count = (5 + 0.75) / particle_radius;
+		l = Vec3(-h_count * particle_radius, 0, 0);
+		auto r = Vec3(h_count * particle_radius, 0, 0);
+		t = Vec3(0, -1 + v_count * particle_radius, 0);
+		for (int k = 0; k < 2; k++) {
+			for (int i = 0; i < 2 * h_count; i++) {
+				const Vec3 pos = Vec3(i * particle_radius, -0.75 - k * particle_radius, 0);
+				sph->boundary_particles.push_back(Particle{ sph->dm, 0, pos + l, rho_0,
+					bnd_set_idx });
+			}
+			for (int i = 0; i < v_count; i++) {
+				Vec3 pos = Vec3(-k * particle_radius, -i * particle_radius, 0);
+				sph->boundary_particles.push_back(Particle{ sph->dm, 0, pos + l + t , rho_0,
+					bnd_set_idx });
+				pos = Vec3(k * particle_radius, -i * particle_radius, 0);
+				sph->boundary_particles.push_back(Particle{ sph->dm, 0, pos + r + t , rho_0,
+					bnd_set_idx });
+			}
+		}
+		sph->neighborhood_searcher->register_set(sph->boundary_particles);
+		sph->neighborhood_searcher->find_neighborhoods();
+		sph->compute_boundary_volumes();
+	
+	}
+	break;
+	case 2:
 	{
 		const int DIM = 10;
 		*timestep = 0.001f;
 		bounciness = 0.3;
 		gravity = Vec3(0, -9.81f, 0);
+		show_static_boundary = false;
+		show_dynamic_boundary = false;
 		int num_particles = DIM * DIM * DIM;
 		Real rho_0 = 1;
 		Real particle_radius = 0.3;
@@ -243,7 +262,7 @@ void Sandbox::notifyCaseChanged(int testCase) {
 					Vec3 pos = Vec3(
 						i * boundary_radius,
 						j * boundary_radius,
-						-2 * ((d_count + 1  +k) * boundary_radius)
+						-2 * ((d_count + 1 + k) * boundary_radius)
 					);
 					boundary_particles.push_back(Particle{ sph->dm, 0, pos + l + n , rho_0,
 						bnd_set_idx });
@@ -277,64 +296,16 @@ void Sandbox::notifyCaseChanged(int testCase) {
 		sph->neighborhood_searcher->register_set(boundary_particles);
 		sph->neighborhood_searcher->find_neighborhoods();
 		sph->compute_boundary_volumes();
+	
 	}
 	break;
-	case 7:
-		// SPH Box
-	{
-		const int DIM = 10;
-		add_box({ 0, -0.5, -1 }, { 1, 1, 1 }, 100);
-		*timestep = 0.01f;
-		bounciness = 0.3;
-		gravity = Vec3(0, -9.81f, 0);
-		int num_particles = DIM * DIM * DIM;
-		Real rho_0 = 2;
-		Real particle_radius = 0.3;
-		sph->init_sim(gravity, rho_0, num_particles, particle_radius);
-		const Vec3 offset = Vec3{ 0, 0, -0.25 };
-		const Real two_r = particle_radius * 2.0f;
-		auto n = Vec3(0, 0, -DIM * two_r);
-		int h_count = 20;
-		int d_count = (4 / sph->boundary_radius);
-		auto l = Vec3(-h_count * sph->boundary_radius, 0, 0);
-		sph->init_particles(Vec3(-DIM / 2 * two_r + 1, 0, 0),
-			Vec3(0, -0.5 + DIM * two_r, 0),
-			Vec3(0, 0, -DIM * two_r - 2) + 1.5 * offset, DIM, DIM, DIM);
-		const Real boundary_radius = sph->boundary_radius;
-		auto& boundary_particles = sph->boundary_particles;
-		int v_count = (3 + 0.75) / boundary_radius;
-		auto t = Vec3(0, -1 + v_count * boundary_radius, 0);
-		auto r = Vec3(h_count * boundary_radius, 0, 0);
-		for (int k = 0; k < 3; k++) {
-
-			for (int i = 0; i < 2 * h_count; i++) {
-				for (int j = 0; j < 2 * d_count; j++) {
-					Vec3 pos = Vec3(i * boundary_radius,
-						-0.75 - k * boundary_radius,
-						j * boundary_radius);
-					boundary_particles.push_back(
-						Particle{ sph->dm, 0, pos + l + n, rho_0 ,
-						bnd_set_idx, /* visible */ k > 0 });
-					pos.z = -j * boundary_radius;
-					boundary_particles.push_back(
-						Particle{ sph->dm, 0, pos + l + n, rho_0,
-						bnd_set_idx, /* visible */ k > 0 });
-				}
-			}
-		}
-		DUC->box->samples.clear();
-		DUC->box->sample_mesh();
-		create_rb_boundaries(true /* create boundary particles */);
-		sph->neighborhood_searcher->register_set(boundary_particles);
-		sph->neighborhood_searcher->register_set(sph->moving_boundary_particles);
-		sph->neighborhood_searcher->find_neighborhoods();
-		sph->compute_boundary_volumes();
-	}
-	case 8:
+	case 3:
 	{
 		const int DIM = 10;
 		add_box({ -1, 0.6, -8 }, { 1, 1, 1 }, 200);
 		add_box({ 2, 0.6, -12 }, { 1, 1, 1 }, 100);
+		show_static_boundary = true;
+		show_dynamic_boundary = true;
 		*timestep = 0.02f;
 		sph->time_step = 0.02f;
 		bounciness = 0.3;
@@ -443,57 +414,14 @@ void Sandbox::notifyCaseChanged(int testCase) {
 		add_plane(0.5, { 0,1,0 });
 		//add_plane(10, { 0,0,1 });
 		//add_plane(10, { 0,0,-1 });
-	}
-	break;
-	case 9:
-	{
-		const int DIM = 10;
-		*timestep = 0.001f;
-		sph->time_step = 0.001f;
-		bounciness = 0.3;
-		gravity = Vec3(0, -9.81f, 0);
-		sph->is_2d = true;
-		int k = 2;
-		int num_particles = DIM * DIM;
-		Real rho_0 = 100;
-		Real particle_radius = 0.3;
-		const double two_r = particle_radius * 2.0f;
-		const auto& pr = particle_radius;
-		auto l = Vec3(-DIM / 2 * two_r, 0, 0);
-		auto t = Vec3(0, DIM * two_r, 0);
-		sph->init_sim(gravity, rho_0, num_particles, particle_radius);
-		sph->init_particles(l, t, Vec3(), DIM, DIM, 0);
-		sph->boundary_particles.push_back(Particle(sph->dm, 0, Vec3(0, -0.75, 0), rho_0,
-			bnd_set_idx));
-		auto h_count = 20;
-		auto v_count = (5 + 0.75) / particle_radius;
-		l = Vec3(-h_count * particle_radius, 0, 0);
-		auto r = Vec3(h_count * particle_radius, 0, 0);
-		t = Vec3(0, -1 + v_count * particle_radius, 0);
-		for (int k = 0; k < 2; k++) {
-			for (int i = 0; i < 2 * h_count; i++) {
-				const Vec3 pos = Vec3(i * particle_radius, -0.75 - k * particle_radius, 0);
-				sph->boundary_particles.push_back(Particle{ sph->dm, 0, pos + l, rho_0,
-					bnd_set_idx });
-			}
-			for (int i = 0; i < v_count; i++) {
-				Vec3 pos = Vec3(-k * particle_radius, -i * particle_radius, 0);
-				sph->boundary_particles.push_back(Particle{ sph->dm, 0, pos + l + t , rho_0,
-					bnd_set_idx });
-				pos = Vec3(k * particle_radius, -i * particle_radius, 0);
-				sph->boundary_particles.push_back(Particle{ sph->dm, 0, pos + r + t , rho_0,
-					bnd_set_idx });
-			}
-		}
-		sph->neighborhood_searcher->register_set(sph->boundary_particles);
-		sph->neighborhood_searcher->find_neighborhoods();
-		sph->compute_boundary_volumes();
+		
+	
 	}
 	break;
 	default:
 		break;
 	}
-	if (testCase != 8) { 
+	if (testCase != 2) { 
 		add_plane(-1, { 0,1,0 });
 	}
 }
@@ -570,21 +498,11 @@ void Sandbox::handle_collisions() {
 }
 
 void Sandbox::simulateTimestep(float time_step) {
-	if (m_iTestCase >= 10) {
+	if (m_iTestCase >= 4) {
 		sf->simulateTimestep(time_step);
 		return;
 	}
 	num_run++;
-	if (m_iTestCase == 3) {
-		static std::mt19937 eng;
-		static std::uniform_real_distribution<float> randomer(-1.5, 2);
-		static int counter = 0;
-		counter++;
-		if (counter > 500) {
-			add_box({ randomer(eng), 1.0, randomer(eng) }, { 0.3, 0.3, 0.3 }, 2);
-			counter = 0;
-		}
-	}
 	if (sph) {
 		sph->simulateTimestep(time_step);
 	}

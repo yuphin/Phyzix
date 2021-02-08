@@ -48,6 +48,23 @@ void RigidBody::make_plane(float offset, const Vec3& normal) {
 	movable = false;
 }
 
+void RigidBody::make_finite_plane(
+	const std::pair<float, float> x_bounds, 
+	const std::pair<float, float> y_bounds, 
+	const std::pair<float, float> z_bounds, 
+	float offset, const Vec3& normal) {
+
+	this->offset = offset;
+	this->normal = normal;
+	inv_inertia_0 = 0;
+	inv_mass = 0;
+	movable = false;
+	type = RigidBodyType::PLANE;
+	this->x_bounds = x_bounds;
+	this->y_bounds = y_bounds;
+	this->z_bounds = z_bounds;
+}
+
 void RigidBody::make_sphere(float radius, const Vec3& pos, int mass) {
 	this->offset = radius;
 	this->mass = mass;

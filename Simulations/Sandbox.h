@@ -30,6 +30,13 @@ public:
 	void add_box(Vec3 position, Vec3 size, int mass);
 	void add_sphere(const Vec3& pos, float radius, int mass);
 	void add_plane(float offset, const Vec3& normal);
+	void add_finite_plane(
+		const std::pair<float, float> x_bounds,
+		const std::pair<float, float> y_bounds,
+		const std::pair<float, float> z_bounds,
+		float offset,
+		const Vec3& normal
+	);
 	void setOrientationOf(int i, Quat orientation);
 	void setVelocityOf(int i, Vec3 velocity);
 	void handle_collisions();

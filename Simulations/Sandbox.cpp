@@ -6,7 +6,6 @@ Sandbox::Sandbox() {
 	collision_map[3] = collision_box_sphere;
 	collision_map[5] = collision_box_plane;
 	collision_map[6] = collision_sphere_plane;
-
 }
 static int num_run = 0;
 const char* Sandbox::getTestCasesStr() {
@@ -133,17 +132,10 @@ void Sandbox::notifyCaseChanged(int testCase) {
 	}
 	switch (testCase) {
 	case 0:
-		//*timestep = 0.001f;
-		//add_sphere({ 0.3,0,0 }, 0.5, 10);
-		//add_sphere({ 0,2,0 }, 0.5, 10);
 		gravity = Vec3(0, -9.81f, 0);
 		add_box({ -0.5,2,0 }, { 0.3,0.3,0.3 }, 10);
-	/*	add_box({ 1.0,3,1 }, { 0.3,0.3,0.3 }, 10);
-		add_box({ -1.0,4,0.5 }, { 0.3,0.3,0.3 }, 10);
-		add_box({ 0.5,1.5,-0.5 }, { 1,1,1 }, 10);*/
 		add_sphere({ 0.3,2,0 }, 0.5, 10);
-		/*add_sphere({ 0.45,3,0 }, 0.5, 10);
-		add_sphere({ -0.45,4,-.5 }, 0.5, 10);*/
+		add_plane(-1, { 0,1,0 });
 		break;
 
 	case 1:
@@ -411,18 +403,22 @@ void Sandbox::notifyCaseChanged(int testCase) {
 		sph->neighborhood_searcher->register_set(sph->moving_boundary_particles);
 		sph->neighborhood_searcher->find_neighborhoods();
 		sph->compute_boundary_volumes();
-		add_plane(0.5, { 0,1,0 });
-		//add_plane(10, { 0,0,1 });
-		//add_plane(10, { 0,0,-1 });
+		const std::pair<float, float> y_bnds = { -FLT_MAX, FLT_MAX };
+		const std::pair<float, float> x_bnds = { 
+			static_cast<float>(l.x),
+			static_cast<float>(l.x + (2 * h_count + 1) * boundary_radius)
+		};
+		const std::pair<float, float> z_bnds = { 
+			static_cast<float>(n.z -2 * (d_count + 1) * boundary_radius), 
+			static_cast<float>(n.z +2 * (d_count + 1) * boundary_radius) 
+		};
+		add_finite_plane(x_bnds, y_bnds, z_bnds, 0.5, { 0,1,0 });
 		
 	
 	}
 	break;
 	default:
 		break;
-	}
-	if (testCase != 2) { 
-		add_plane(-1, { 0,1,0 });
 	}
 }
 
@@ -590,6 +586,23 @@ void Sandbox::add_plane(float offset, const Vec3& normal) {
 	plane.make_plane(offset, normal);
 	rigid_bodies.push_back(plane);
 
+}
+
+void Sandbox::add_finite_plane(const std::pair<float, float> x_bounds,
+	const std::pair<float, float> y_bounds,
+	const std::pair<float, float> z_bounds,
+	float offset,
+	const Vec3& normal) {
+
+	RigidBody finite_plane;
+	finite_plane.make_finite_plane(
+		x_bounds,
+		y_bounds,
+		z_bounds,
+		offset,
+		normal
+	);
+	rigid_bodies.push_back(finite_plane);
 }
 
 void Sandbox::setOrientationOf(int i, Quat orientation) {

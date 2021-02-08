@@ -14,7 +14,7 @@ class Sandbox;
 class SPHSimulator : public Simulator {
 public:
 	SPHSimulator();
-	void pass_time_step_variable(float time_step);
+	void pass_time_step_variable(float& time_step);
 	const char* getTestCasesStr();
 	void initUI(DrawingUtilitiesClass* DUC) override;
 	void reset() override;

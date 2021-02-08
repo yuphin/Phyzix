@@ -13,6 +13,11 @@ Contact* collision_box_plane(RigidBody* rb1, RigidBody* plane, Mat4& trs_a,
 	for (int i = 0; i < 8; i++) {
 		auto vtx_pos = vtxs[i];
 		vtx_pos = vtx_pos * trs_a;
+		if ((vtx_pos.x < plane->x_bounds.first || vtx_pos.x > plane->x_bounds.second)
+			|| (vtx_pos.y < plane->y_bounds.first || vtx_pos.y > plane->y_bounds.second)
+			|| (vtx_pos.z < plane->z_bounds.first || vtx_pos.z > plane->z_bounds.second)) {
+			continue;
+		}
 		auto vtx_dist = dot(vtx_pos, plane->normal);
 		if (vtx_dist <= plane->offset) {
 			//printf("VTX DIST %f\n", vtx_dist);
@@ -41,6 +46,11 @@ Contact* collision_box_plane(RigidBody* rb1, RigidBody* plane, Mat4& trs_a,
 Contact* collision_sphere_plane(RigidBody* sphere, RigidBody* plane, Mat4& trs_sphere, CollisionData& c_data) {
 	// Sphere->offset == radius
 	Contact* res = nullptr;
+	if ((sphere->position.x < plane->x_bounds.first || sphere->position.x > plane->x_bounds.second)
+		|| (sphere->position.y < plane->y_bounds.first || sphere->position.y > plane->y_bounds.second)
+		|| (sphere->position.z < plane->z_bounds.first || sphere->position.z > plane->z_bounds.second)) {
+		return res;
+	}
 	float dist = dot(plane->normal, sphere->position) - sphere->offset - plane->offset;
 	if (dist <= 0) {
 		res = &c_data.contacts[c_data.num_contacts++];

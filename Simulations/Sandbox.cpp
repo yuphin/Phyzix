@@ -521,6 +521,7 @@ void Sandbox::simulateTimestep(float time_step) {
 		rb.angular_vel = inv_inertia * rb.angular_momentum;
 		if (sph) {
 			auto rot_mat = rb.orientation.getRotMat();
+			rot_mat.transpose();
 			for (int i = 0; i < sph->moving_boundary_particles.size(); i++) {
 				if (sph->moving_boundary_particles[i].owner != &rb) {
 					continue;

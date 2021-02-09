@@ -9,20 +9,17 @@ Sandbox::Sandbox() {
 }
 static int num_run = 0;
 const char* Sandbox::getTestCasesStr() {
-	return "Empty,SPH 2D,Dam Break,Boxes,Fire,Smoky";
+	return "SPH 2D,Dam Break,Boxes,Fire,Smoky";
 }
 
 void Sandbox::initUI(DrawingUtilitiesClass* DUC) {
 	this->DUC = DUC;
-	if (m_iTestCase >= 4) {
+	if (m_iTestCase >= 3) {
 		sf->initUI(DUC);
 	}
 	else {
 		TwAddVarRW(DUC->g_pTweakBar, "Static Boundary", TW_TYPE_BOOLCPP, &show_static_boundary, "");
 		TwAddVarRW(DUC->g_pTweakBar, "Dynamic Boundary", TW_TYPE_BOOLCPP, &show_dynamic_boundary, "");
-	/*	TwAddVarCB(DUC->g_pTweakBar, "Gravity", TW_TYPE_DIR3F, set_gravity, get_gravity, &gravity, "");
-		TwAddButton(DUC->g_pTweakBar, "Create Random Box", addRandomBox, this, "");
-		TwAddButton(DUC->g_pTweakBar, "Create Random Sphere", addRandomSphere, this, "");*/
 	}
 }
 
@@ -54,7 +51,7 @@ void TW_CALL Sandbox::set_gravity(const void* value, void* client_data) {
 void Sandbox::reset() {}
 
 void Sandbox::drawFrame(ID3D11DeviceContext* context) {
-	if (m_iTestCase >= 4) {
+	if (m_iTestCase >= 3) {
 		sf->drawFrame(context);
 		return;
 	}
@@ -84,7 +81,7 @@ void Sandbox::drawFrame(ID3D11DeviceContext* context) {
 			break;
 		}
 	}
-	if (m_iTestCase >= 1 && m_iTestCase < 4) {
+	if (m_iTestCase < 3) {
 		const float br = sph->boundary_radius;
 		const float pr = sph->particle_radius;
 		DUC->setUpLighting(Vec3(0, 0, 0), Vec3(), 1, Vec3(0.1, 0.1, 0.1));
@@ -111,31 +108,23 @@ void Sandbox::drawFrame(ID3D11DeviceContext* context) {
 }
 
 void Sandbox::notifyCaseChanged(int testCase) {
-	//testCase = 7;
 	m_iTestCase = testCase;
 	rigid_bodies.clear();
 	mouse_force = 0;
 	render_planes = false;
 	const int bnd_set_idx = 1;
-	if (testCase >= 4) {
+	if (testCase >= 3) {
 		sf = std::make_unique<StableFluid>();
 		sf->pass_time_step_variable(*timestep);
-		sf->notifyCaseChanged(testCase - 4);
+		sf->notifyCaseChanged(testCase - 3);
 	}
-	else if (testCase >= 1) {
+	else {
 		sph = std::make_unique<SPHSimulator>();
 		sph_timestep = 0.02f;
 		sph->pass_time_step_variable(sph_timestep);
 	}
 	switch (testCase) {
 	case 0:
-		gravity = Vec3(0, -9.81f, 0);
-		add_box({ -0.5,2,0 }, { 0.3,0.3,0.3 }, 10);
-		add_sphere({ 0.3,2,0 }, 0.5, 10);
-		add_plane(-1, { 0,1,0 });
-		break;
-
-	case 1:
 		// SPH 2D
 	{
 		const int DIM = 10;
@@ -183,7 +172,7 @@ void Sandbox::notifyCaseChanged(int testCase) {
 	
 	}
 	break;
-	case 2:
+	case 1:
 	{
 		const int DIM = 10;
 		*timestep = 0.001f;
@@ -288,7 +277,7 @@ void Sandbox::notifyCaseChanged(int testCase) {
 	
 	}
 	break;
-	case 3:
+	case 2:
 	{
 		const int DIM = 10;
 		add_box({ -1, 0.6, -8 }, { 1, 1, 1 }, 200);
@@ -393,13 +382,7 @@ void Sandbox::notifyCaseChanged(int testCase) {
 			}
 
 		}
-		DUC->box->samples.clear();
-		DUC->box->sample_mesh();
-		create_rb_boundaries(true /* create boundary particles */);
-		sph->neighborhood_searcher->register_set(boundary_particles);
-		sph->neighborhood_searcher->register_set(sph->moving_boundary_particles);
-		sph->neighborhood_searcher->find_neighborhoods();
-		sph->compute_boundary_volumes();
+	
 		const std::pair<float, float> y_bnds = { -FLT_MAX, FLT_MAX };
 		const std::pair<float, float> x_bnds = { 
 			static_cast<float>(l.x),
@@ -410,8 +393,13 @@ void Sandbox::notifyCaseChanged(int testCase) {
 			static_cast<float>(n.z +2 * (d_count + 1) * boundary_radius) 
 		};
 		add_finite_plane(x_bnds, y_bnds, z_bnds, 0.5, { 0,1,0 });
-		
-	
+		DUC->box->samples.clear();
+		DUC->box->sample_mesh();
+		create_rb_boundaries(true /* create boundary particles */);
+		sph->neighborhood_searcher->register_set(boundary_particles);
+		sph->neighborhood_searcher->register_set(sph->moving_boundary_particles);
+		sph->neighborhood_searcher->find_neighborhoods();
+		sph->compute_boundary_volumes();
 	}
 	break;
 	default:
@@ -491,7 +479,7 @@ void Sandbox::handle_collisions() {
 }
 
 void Sandbox::simulateTimestep(float time_step) {
-	if (m_iTestCase >= 4) {
+	if (m_iTestCase >= 3) {
 		sf->simulateTimestep(time_step);
 		return;
 	}
@@ -802,6 +790,8 @@ void Sandbox::calc_after_col_vel(Contact* contact, float delta_vel,
 
 void Sandbox::create_rb_boundaries(bool create) {
 	for (auto& rb : rigid_bodies) {
+		auto rot_mat = rb.orientation.getRotMat();
+		rot_mat.transpose();
 		if (rb.type != RigidBodyType::CUBOID) {
 			continue;
 		}
@@ -810,7 +800,7 @@ void Sandbox::create_rb_boundaries(bool create) {
 		}
 		for (int i = 0; i < rb.samples.size(); i++) {
 			rb.samples[i] += rb.position;
-			rb.samples[i] = rb.orientation.getRotMat() * rb.samples[i];
+			rb.samples[i] = rot_mat * rb.samples[i];
 			rb.samples[i].x *= rb.size.x;
 			rb.samples[i].y *= rb.size.y;
 			rb.samples[i].z *= rb.size.z;

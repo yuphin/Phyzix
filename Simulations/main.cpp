@@ -425,7 +425,7 @@ int main(int argc, char* argv[]) {
 	((MassSpringSystemSimulator*) g_pSimulator)->init_resources(duc->g_ppd3Device);
 #endif
 	scene = std::make_unique<Scene>();
-	const std::string file_name("assets/cornell_box.txt");
+	const std::string file_name("D:/Projects/VSProjects/Game Physics/Simulations/assets/cornell_box.scene");
 	load_scene_file(file_name, scene.get());
 	path_tracer = std::make_unique<PathTracer>(duc->g_ppd3Device, duc->g_pd3dImmediateContext,
 											   &duc->g_camera, scene.get());
